@@ -365,6 +365,25 @@ function calculateIncomeApproach() {
   return Math.round(annualNetIncome / capRate);
 }
 
+function calculatePriorityRepayment(address, propertyType, deposit) {
+  if (!deposit || deposit <= 0) return 0;
+
+  const isCommercial = propertyType && propertyType.includes('상가');
+
+  if (isCommercial) {
+    if (address.includes('서울')) return deposit <= 65000000 ? 22000000 : 0;
+    if (address.includes('세종') || address.includes('용인시') || address.includes('화성시') || address.includes('김포시')) return deposit <= 55000000 ? 19000000 : 0;
+    if (address.includes('광역시') || address.includes('안산시') || address.includes('용인시') || address.includes('김포시') || address.includes('광주시')) return deposit <= 38000000 ? 13000000 : 0;
+    return deposit <= 30000000 ? 10000000 : 0;
+  }
+
+  if (address.includes('서울')) return deposit <= 165000000 ? 55000000 : 0;
+  if (address.includes('세종') || address.includes('용인시') || address.includes('화성시') || address.includes('김포시')) return deposit <= 145000000 ? 48000000 : 0;
+  if (address.includes('광역시') || address.includes('안산시') || address.includes('광주시') || address.includes('파주시') || address.includes('이천시') || address.includes('평택시')) return deposit <= 85000000 ? 28000000 : 0;
+
+  return deposit <= 75000000 ? 25000000 : 0;
+}
+  
 async function calculate() {
   const address = document.getElementById('address').value.trim();
   if (!address) {
@@ -388,7 +407,10 @@ async function calculate() {
 
   const collateralBase = Number.isFinite(market.investigationPrice) ? Math.round(market.investigationPrice * 0.7) : null;
   const seniorMortgage = parsed.seniorMortgageAmount === null ? 0 : parsed.seniorMortgageAmount;
-  const finalValue = Number.isFinite(collateralBase) ? Math.max(0, collateralBase - deposit - seniorMortgage) : null;
+  const priorityRepayment = tenant === '없음' ? 0 : calculatePriorityRepayment(address, parsed.detailType, deposit);
+  const finalValue = Number.isFinite(collateralBase)
+  ? Math.max(0, collateralBase - deposit - priorityRepayment - seniorMortgage)
+  : null;
   const costApproach = calculateCostApproach(parsed.exclusiveArea);
   const incomeApproach = calculateIncomeApproach();
   const weightedValue = Number.isFinite(market.investigationPrice) && costApproach ? Math.round((market.investigationPrice * 0.7 + costApproach * 0.15 + incomeApproach * 0.15) / 1.0) : null;
@@ -445,10 +467,9 @@ async function calculate() {
     ${card('담보가치 계산 근거', `
       <p>담보 인정가 = ${formatMoney(market.investigationPrice)} × 70% = <b>${formatMoney(collateralBase)}</b></p>
       <p>적용 임차보증금 = <b>${formatMoney(deposit)}</b></p>
+      <p>최우선변제금 = <b>${formatMoney(priorityRepayment)}</b></p>
       <p>선순위 근저당 = <b>${formatMoney(parsed.seniorMortgageAmount)}</b></p>
-      <p class="mt-3 rounded-xl bg-blue-50 p-3 font-bold text-blue-900">최종 담보가치 = ${formatMoney(collateralBase)} - ${formatMoney(deposit)} - ${formatMoney(parsed.seniorMortgageAmount)} = ${formatMoney(finalValue)}</p>
-      <p class="mt-2 text-sm text-slate-500">결과 신뢰도: <b>${confidence}</b></p>
-    `)}
+      <p class="mt-3 rounded-xl bg-blue-50 p-3 font-bold text-blue-900">최종 담보가치 = ${formatMoney(collateralBase)} - ${formatMoney(deposit)} - ${formatMoney(priorityRepayment)} - ${formatMoney(parsed.seniorMortgageAmount)} = ${formatMoney(finalValue)}</p>
 
     ${card('오류 및 유의사항', `
       <ul class="list-disc pl-5 text-sm text-slate-600 space-y-1">
