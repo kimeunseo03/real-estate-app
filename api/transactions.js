@@ -1,7 +1,11 @@
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'POST만 허용됩니다.' });
+      return res.status(405).json({
+        investigationPrice: null,
+        transactionCount: 0,
+        message: 'POST만 허용됩니다.'
+      });
     }
 
     const { address, area, currentFloor, totalFloors } = req.body || {};
@@ -10,9 +14,8 @@ export default async function handler(req, res) {
     if (!serviceKey) {
       return res.status(200).json({
         investigationPrice: null,
-        source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: 'PUBLIC_DATA_API_KEY 환경변수가 없습니다.'
+        message: '❌ API KEY 없음 (Vercel 환경변수 확인)'
       });
     }
 
@@ -21,13 +24,12 @@ export default async function handler(req, res) {
     if (!lawdCode) {
       return res.status(200).json({
         investigationPrice: null,
-        source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: `주소에서 법정동코드를 찾지 못했습니다: ${address}`
+        message: `❌ 법정동코드 매칭 실패: ${address}`
       });
     }
 
-    const months = getRecentMonths(36);
+    const months = getRecentMonths(24);
     const allItems = [];
 
     for (const dealYmd of months) {
@@ -40,15 +42,24 @@ export default async function handler(req, res) {
       const response = await fetch(url);
       const xml = await response.text();
 
+      // 👉 API 에러 그대로 출력
+      if (xml.includes('SERVICE KEY IS NOT REGISTERED ERROR')) {
+        return res.status(200).json({
+          investigationPrice: null,
+          transactionCount: 0,
+          message: '❌ API KEY 인증 실패'
+        });
+      }
+
       const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
       for (const item of items) {
-        const priceText = getXml(item, 'dealAmount') || getXml(item, '거래금액');
-        const areaText = getXml(item, 'excluUseAr') || getXml(item, '전용면적');
-        const floorText = getXml(item, 'floor') || getXml(item, '층');
+        const priceText = getXml(item, '거래금액') || getXml(item, 'dealAmount');
+        const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr');
+        const floorText = getXml(item, '층') || getXml(item, 'floor');
 
-        const priceManwon = Number(String(priceText).replace(/,/g, '').replace(/\s/g, ''));
-        const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
+        const priceManwon = Number(String(priceText).replace(/,/g, '').trim());
+        const exclusiveArea = Number(String(areaText).trim());
         const floor = Number(String(floorText).trim());
 
         if (priceManwon && exclusiveArea) {
@@ -61,6 +72,14 @@ export default async function handler(req, res) {
       }
     }
 
+    if (!allItems.length) {
+      return res.status(200).json({
+        investigationPrice: null,
+        transactionCount: 0,
+        message: `❌ ${lawdCode} 지역 실거래 데이터 없음`
+      });
+    }
+
     const targetArea = Number(area || 0);
 
     let filtered = allItems.filter((item) => {
@@ -68,25 +87,11 @@ export default async function handler(req, res) {
       return Math.abs(item.area - targetArea) <= 10;
     });
 
-    if (!filtered.length && allItems.length) {
-      filtered = allItems;
-    }
-
-    if (!allItems.length) {
-      return res.status(200).json({
-        investigationPrice: null,
-        source: '공공데이터포털 실거래가 API',
-        transactionCount: 0,
-        message: `최근 36개월 ${lawdCode} 지역 실거래 데이터가 없습니다.`
-      });
-    }
-
     if (!filtered.length) {
       return res.status(200).json({
         investigationPrice: null,
-        source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: `거래 ${allItems.length}건은 있으나 전용면적 ${targetArea}㎡ 유사 거래가 없습니다.`
+        message: `❌ 면적 ${targetArea}㎡ 유사 거래 없음 (전체 ${allItems.length}건)`
       });
     }
 
@@ -100,21 +105,20 @@ export default async function handler(req, res) {
     const useLower = currentFloor && medianFloor ? currentFloor < medianFloor : true;
 
     return res.status(200).json({
-      source: '공공데이터포털 실거래가 API',
       transactionCount: filtered.length,
-      totalRawCount: allItems.length,
       upperPrice,
       middlePrice,
       lowerPrice,
       appliedPriceType: useLower ? '하위값' : '중위값',
-      investigationPrice: useLower ? lowerPrice : middlePrice
+      investigationPrice: useLower ? lowerPrice : middlePrice,
+      message: `✅ 성공 (${filtered.length}건)`
     });
+
   } catch (error) {
     return res.status(200).json({
       investigationPrice: null,
-      source: '공공데이터포털 실거래가 API',
       transactionCount: 0,
-      message: `실거래가 API 조회 실패: ${error.message}`
+      message: `❌ 서버 오류: ${error.message}`
     });
   }
 }
