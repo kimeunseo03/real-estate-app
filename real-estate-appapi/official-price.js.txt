@@ -1,18 +1,107 @@
 export default async function handler(req, res) {
   try {
-    const { address } = req.body;
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "POST만 허용됩니다." });
+    }
 
-    const price = 650000000; // 테스트값
+    const { address, unitNumber, exclusiveArea } = req.body || {};
 
-    res.status(200).json({
-      officialPrice: price,
+    if (!address) {
+      return res.status(400).json({ error: "주소가 없습니다." });
+    }
+
+    const serviceKey = process.env.PUBLIC_DATA_API_KEY;
+
+    if (!serviceKey) {
+      return res.status(500).json({
+        error: "PUBLIC_DATA_API_KEY 환경변수가 없습니다."
+      });
+    }
+
+    /*
+      중요:
+      공동주택가격정보 API는 보통 PNU/고유번호/기준연도 기반 조회가 필요합니다.
+      주소 문자열만으로 100% 바로 조회되지 않을 수 있어서,
+      실제 완성형은 다음 단계가 필요합니다.
+
+      1. 주소 → 법정동/PNU 변환
+      2. 단지명/동/호/전유면적 매칭
+      3. 공동주택가격정보 API 조회
+    */
+
+    // TODO: 네가 공공데이터포털에서 받은 실제 API 상세 URL/파라미터에 맞춰 교체
+    // 예시 형태:
+    const apiUrl = new URL("https://api.odcloud.kr/api/15000000/v1/uddi:REPLACE_WITH_REAL_ENDPOINT");
+
+    apiUrl.searchParams.set("serviceKey", serviceKey);
+    apiUrl.searchParams.set("page", "1");
+    apiUrl.searchParams.set("perPage", "10");
+
+    // 주소 기반 필터가 가능한 API면 여기 사용
+    apiUrl.searchParams.set("cond[주소::LIKE]", address);
+
+    const response = await fetch(apiUrl.toString());
+
+    if (!response.ok) {
+      return res.status(502).json({
+        error: "공시가격 API 응답 실패",
+        status: response.status
+      });
+    }
+
+    const data = await response.json();
+
+    const rows = data.data || data.items || data.response?.body?.items?.item || [];
+
+    const list = Array.isArray(rows) ? rows : [rows];
+
+    if (!list.length) {
+      return res.status(200).json({
+        officialPrice: null,
+        source: "공시가격 API",
+        transactionCount: 0,
+        message: "공시가격 데이터 부재"
+      });
+    }
+
+    const matched = list.find((row) => {
+      const text = JSON.stringify(row);
+      const areaNumber = String(exclusiveArea || "").replace(/[^0-9.]/g, "");
+      return (
+        (!unitNumber || text.includes(unitNumber.replace(/\s+/g, "")) || text.includes(unitNumber)) &&
+        (!areaNumber || text.includes(areaNumber))
+      );
+    }) || list[0];
+
+    const priceKeys = [
+      "공시가격",
+      "공동주택가격",
+      "가격",
+      "pblntfPc",
+      "aphusPc",
+      "officialPrice"
+    ];
+
+    let officialPrice = null;
+
+    for (const key of priceKeys) {
+      if (matched[key]) {
+        officialPrice = Number(String(matched[key]).replace(/[^0-9]/g, ""));
+        break;
+      }
+    }
+
+    return res.status(200).json({
+      officialPrice: officialPrice || null,
       source: "공시가격 API",
-      transactionCount: 1
+      transactionCount: list.length,
+      raw: matched
     });
 
-  } catch (e) {
-    res.status(500).json({
-      error: "API 실패"
+  } catch (error) {
+    return res.status(500).json({
+      error: "공시가격 API 조회 실패",
+      detail: error.message
     });
   }
 }
