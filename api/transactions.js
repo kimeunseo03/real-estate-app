@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const months = getRecentMonths(36);
+    const months = getRecentMonths(24);
     const allItems = [];
 
     for (const dealYmd of months) {
