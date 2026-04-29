@@ -531,15 +531,48 @@ async function calculate() {
     ]))}
 
     ${card('감정평가 3방식 비교', `
-      <div class="grid gap-3 md:grid-cols-3">
-        ${methodCard('거래사례비교법', formatMoney(market.investigationPrice), '중심')}
-        ${methodCard('원가법', formatMoney(costApproach), '검증')}
-        ${methodCard('수익환원법', formatMoney(incomeApproach), '검증')}
-      </div>
-      <div class="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-        거래사례비교법을 중심값으로 두고 원가법과 수익환원법은 검증 지표로 비교합니다. 가중 참고값은 <b>${formatMoney(weightedValue)}</b>이며, 담보평가에는 보수적으로 거래사례비교법 기준 조사가액을 우선 적용합니다.
-      </div>
-    `)}
+  <div class="grid gap-3 md:grid-cols-3">
+
+    ${methodCard(
+      '거래사례비교법',
+      formatMoney(market.investigationPrice),
+      '중심',
+      'salesDetail',
+      `
+        유사 거래 비교 후 최고가 1건 제외<br>
+        상위값: ${formatMoney(market.upperPrice)} (제외)<br>
+        중위값: ${formatMoney(market.middlePrice)}<br>
+        하위값: ${formatMoney(market.lowerPrice)}<br>
+        적용: ${market.appliedPriceType}
+      `
+    )}
+
+    ${methodCard(
+      '원가법',
+      formatMoney(costApproach),
+      '검증',
+      'costDetail',
+      `
+        원가법 = 토지 + 건물 재조달원가 × (1 - 감가율)<br>
+        전유면적: ${parsed.exclusiveArea}<br>
+        감가율: 32%
+      `
+    )}
+
+    ${methodCard(
+      '수익환원법',
+      formatMoney(incomeApproach),
+      '검증',
+      'incomeDetail',
+      `
+        수익환원법 = 순수익 ÷ 환원율<br>
+        월세 추정: ${formatMoney(2300000)}<br>
+        환원율: 4.2%
+      `
+    )}
+
+  </div>
+`)}
 
     ${card('담보가치 계산 근거', `
       <p>담보 인정가 = ${formatMoney(market.investigationPrice)} × 70% = <b>${formatMoney(collateralBase)}</b></p>
@@ -577,16 +610,32 @@ function card(title, body) {
 function grid(items) {
   return `<div class="grid gap-3 md:grid-cols-2">${items.map(([k,v]) => `<div class="rounded-xl bg-slate-50 p-3"><p class="text-xs text-slate-500">${k}</p><p class="font-bold mt-1">${v}</p></div>`).join('')}</div>`;
 }
-
-function methodCard(name, value, role) {
-  const main = role === '중심';
-  return `<div class="rounded-xl p-4 border ${main ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}"><div class="flex justify-between"><b>${name}</b><span class="text-xs rounded-full px-2 py-1 ${main ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}">${role}</span></div><p class="text-xl font-black mt-3">${value}</p></div>`;
+  
+function toggleMethodDetail(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
+  
+function methodCard(name, value, role, detailId, detailHtml) {
+  const main = role === '중심';
 
-function badgeClass(tone) {
-  return tone === 'green'
-    ? 'rounded-full bg-emerald-50 text-emerald-700 px-2 py-1 text-xs font-bold border border-emerald-200'
-    : 'rounded-full bg-amber-50 text-amber-700 px-2 py-1 text-xs font-bold border border-amber-200';
+  return `
+    <div class="rounded-xl p-4 border ${main ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}">
+      <button type="button" onclick="toggleMethodDetail('${detailId}')" class="w-full text-left">
+        <div class="flex justify-between">
+          <b>${name}</b>
+          <span class="text-xs rounded-full px-2 py-1 ${main ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}">${role}</span>
+        </div>
+        <p class="text-xl font-black mt-3">${value}</p>
+        <p class="text-xs text-slate-500 mt-2">클릭하면 계산 근거를 볼 수 있습니다.</p>
+      </button>
+
+      <div id="${detailId}" style="display:none;" class="mt-4 rounded-xl bg-white border border-slate-200 p-3 text-xs leading-6 text-slate-700">
+        ${detailHtml}
+      </div>
+    </div>
+  `;
 }
 
 document.getElementById('result').innerHTML = card('시작하기', '<p class="text-slate-600">주소를 입력하고 등기부등본 파일을 업로드한 뒤 결과 계산하기를 눌러주세요.</p>');
