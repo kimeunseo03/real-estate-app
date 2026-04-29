@@ -523,9 +523,10 @@ async function calculate() {
       ['시세 출처', market.marketPriceSource],
       ['API 메시지', market.errorMessage || '정상'],
       ['데이터 건수', typeof market.transactionCount === 'number' ? `${market.transactionCount}건` : market.transactionCount],
-      ['상위값', `${formatMoney(market.upperPrice)} / 산정 제외`],
+      ['상위값', `${formatMoney(market.upperPrice)} / 이상치로 산정 제외`],
       ['중위값', formatMoney(market.middlePrice)],
       ['하위값', formatMoney(market.lowerPrice)],
+      이상치 제거: 최고가 1건 제외 후 보수적 산정<br>
       ['적용 시세', market.appliedPriceType],
       ['층수 기준', market.apiConnected ? `${parsed.currentFloor || '확인 필요'}층 / 중위층 ${parsed.medianFloor || '확인 필요'}층 기준` : '실거래가 API 연결 후 산정 가능']
     ]))}
