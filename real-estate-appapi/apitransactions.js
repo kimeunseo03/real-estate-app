@@ -27,8 +27,8 @@ export default async function handler(req, res) {
 
     for (const dealYmd of months) {
       const url =
-        `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev` +
-        `?serviceKey=${encodeURIComponent(serviceKey)}` +
+        'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade' +
+        `?serviceKey=${serviceKey}` +
         `&LAWD_CD=${lawdCode}` +
         `&DEAL_YMD=${dealYmd}`;
 
@@ -38,13 +38,17 @@ export default async function handler(req, res) {
       const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
       for (const item of items) {
-        const priceManwon = Number(getXml(item, '거래금액').replace(/,/g, '').trim());
-        const exclusiveArea = Number(getXml(item, '전용면적'));
-        const floor = Number(getXml(item, '층'));
+        const priceText = getXml(item, 'dealAmount') || getXml(item, '거래금액');
+        const areaText = getXml(item, 'excluUseAr') || getXml(item, '전용면적');
+        const floorText = getXml(item, 'floor') || getXml(item, '층');
+
+        const priceManwon = Number(String(priceText).replace(/,/g, '').trim());
+        const exclusiveArea = Number(areaText);
+        const floor = Number(floorText);
 
         if (priceManwon && exclusiveArea) {
           allItems.push({
-            price: priceManwon * 10000, // 🔥 중요 (만원 → 원)
+            price: priceManwon * 10000,
             area: exclusiveArea,
             floor
           });
@@ -86,7 +90,6 @@ export default async function handler(req, res) {
       appliedPriceType: useLower ? '하위값' : '중위값',
       investigationPrice: useLower ? lowerPrice : middlePrice
     });
-
   } catch (error) {
     return res.status(500).json({
       error: '실거래가 API 조회 실패',
