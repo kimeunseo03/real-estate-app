@@ -305,18 +305,22 @@ async function fetchOfficialPriceFromApi(address, parsed) {
     })
   });
 
-  if (!response.ok) throw new Error('실거래가 API 응답 실패');
-  return await response.json();
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || '실거래가 API 응답 실패');
+  }
+
+  return data;
 }
 
 async function getMarketAnalysis(address, parsed) {
   try {
     const data = await fetchOfficialPriceFromApi(address, parsed);
-
     const investigationPrice = Number(data.investigationPrice || 0);
 
     if (!investigationPrice) {
-  throw new Error(data.message || '실거래가 데이터 없음');
+      throw new Error(data.message || '실거래가 데이터 없음');
     }
 
     return {
@@ -328,7 +332,7 @@ async function getMarketAnalysis(address, parsed) {
       appliedPriceType: data.appliedPriceType || '하위값',
       investigationPrice,
       apiConnected: true,
-      errorMessage: ''
+      errorMessage: data.message || ''
     };
   } catch (error) {
     return {
@@ -373,7 +377,7 @@ async function calculate() {
   }
 
   const parsed = parseRegistry(registryText);
-  document.getElementById('result').innerHTML = card('계산 중', '<p class="text-slate-600">공시가격 API를 조회하고 있습니다...</p>');
+  document.getElementById('result').innerHTML = card('계산 중', '<p class="text-slate-600">실거래가 API를 조회하고 있습니다...</p>');
   const market = await getMarketAnalysis(address, parsed);
   const tenant = document.getElementById('tenant').value;
   const deposit = tenant === '없음' ? 0 : Math.max(
@@ -418,12 +422,13 @@ async function calculate() {
 
     ${card('시세 및 조사가액 분석', grid([
       ['시세 출처', market.marketPriceSource],
+      ['API 메시지', market.errorMessage || '정상'],
       ['데이터 건수', typeof market.transactionCount === 'number' ? `${market.transactionCount}건` : market.transactionCount],
       ['상위값', `${formatMoney(market.upperPrice)} / 산정 제외`],
       ['중위값', formatMoney(market.middlePrice)],
       ['하위값', formatMoney(market.lowerPrice)],
       ['적용 시세', market.appliedPriceType],
-      ['층수 기준', market.apiConnected ? `${parsed.currentFloor || '확인 필요'}층 / 중위층 ${parsed.medianFloor || '확인 필요'}층 기준` : '공시가격 API 연결 후 산정 가능']
+      ['층수 기준', market.apiConnected ? `${parsed.currentFloor || '확인 필요'}층 / 중위층 ${parsed.medianFloor || '확인 필요'}층 기준` : '실거래가 API 연결 후 산정 가능']
     ]))}
 
     ${card('감정평가 3방식 비교', `
