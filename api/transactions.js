@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const months = getRecentMonths(24);
+    const months = getRecentMonths(36);
     const allItems = [];
 
     for (const dealYmd of months) {
@@ -63,17 +63,21 @@ export default async function handler(req, res) {
 
     const targetArea = Number(area || 0);
 
-    const filtered = allItems.filter((item) => {
+    let filtered = allItems.filter((item) => {
       if (!targetArea) return true;
-      return Math.abs(item.area - targetArea) <= 5;
+      return Math.abs(item.area - targetArea) <= 10;
     });
+
+    if (!filtered.length && allItems.length) {
+      filtered = allItems;
+    }
 
     if (!allItems.length) {
       return res.status(200).json({
         investigationPrice: null,
         source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: 'API 응답은 왔지만 거래 item을 파싱하지 못했습니다.'
+        message: `최근 36개월 ${lawdCode} 지역 실거래 데이터가 없습니다.`
       });
     }
 
@@ -82,7 +86,7 @@ export default async function handler(req, res) {
         investigationPrice: null,
         source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: `거래 ${allItems.length}건은 있으나 전용면적 ${targetArea}㎡ ±5㎡ 유사 거래가 없습니다.`
+        message: `거래 ${allItems.length}건은 있으나 전용면적 ${targetArea}㎡ 유사 거래가 없습니다.`
       });
     }
 
@@ -98,6 +102,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       source: '공공데이터포털 실거래가 API',
       transactionCount: filtered.length,
+      totalRawCount: allItems.length,
       upperPrice,
       middlePrice,
       lowerPrice,
@@ -134,13 +139,8 @@ function getRecentMonths(count) {
 }
 
 function getLawdCode(address = '') {
-  const map = [
-    { keyword: '전라남도 나주시 남평읍', code: '46170' },
-    { keyword: '나주시 남평읍', code: '46170' },
-    { keyword: '서울특별시 동대문구', code: '11230' },
-    { keyword: '동대문구', code: '11230' }
-  ];
+  if (address.includes('나주시')) return '46170';
+  if (address.includes('동대문구')) return '11230';
 
-  const found = map.find((item) => address.includes(item.keyword));
-  return found ? found.code : null;
+  return null;
 }
