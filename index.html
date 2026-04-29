@@ -316,7 +316,7 @@ async function getMarketAnalysis(address, parsed) {
     const investigationPrice = Number(data.investigationPrice || 0);
 
     if (!investigationPrice) {
-      throw new Error(data.message || '실거래가 데이터 없음');
+  throw new Error(data.message || '실거래가 데이터 없음');
     }
 
     return {
@@ -332,7 +332,7 @@ async function getMarketAnalysis(address, parsed) {
     };
   } catch (error) {
     return {
-      marketPriceSource: '실거래가 API 연결 필요',
+      marketPriceSource: error.message || '실거래가 API 연결 필요',
       transactionCount: 0,
       upperPrice: null,
       middlePrice: null,
