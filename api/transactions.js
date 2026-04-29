@@ -95,9 +95,15 @@ module.exports = async function handler(req, res) {
 
     const prices = filtered.map((item) => item.price).sort((a, b) => a - b);
 
-    const lowerPrice = prices[0];
-    const middlePrice = prices[Math.floor(prices.length / 2)];
-    const upperPrice = prices[prices.length - 1];
+    // 상위값은 이상치로 보고 실제 산정에서는 제외
+    const upperPrice = prices[prices.length - 1]; 
+    // 거래가 3건 이상일 때만 최고가 1건 제외 
+    const pricesWithoutUpper = prices.length >= 3 
+      ? prices.slice(0, -1) 
+      : prices; 
+     
+    const lowerPrice = pricesWithoutUpper[0]; 
+    const middlePrice = pricesWithoutUpper[Math.floor(pricesWithoutUpper.length / 2)];
 
     const medianFloor = totalFloors ? totalFloors / 2 : 0;
     const useLower = currentFloor && medianFloor ? currentFloor < medianFloor : true;
@@ -105,14 +111,16 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       source: '공공데이터포털 실거래가 API',
       transactionCount: filtered.length,
+      usedTransactionCount: pricesWithoutUpper.length,
+      excludedUpperPrice: upperPrice,
       totalRawCount: allItems.length,
       upperPrice,
       middlePrice,
       lowerPrice,
       appliedPriceType: useLower ? '하위값' : '중위값',
       investigationPrice: useLower ? lowerPrice : middlePrice,
-      message: `✅ 성공: 유사 면적 거래 ${filtered.length}건 / 전체 ${allItems.length}건`
-    });
+      message: `✅ 성공: 유사 면적 거래 ${filtered.length}건 중 상위값 1건 제외 후 ${pricesWithoutUpper.length}건 기준 산정`
+});
 
   } catch (error) {
     return res.status(200).json({
