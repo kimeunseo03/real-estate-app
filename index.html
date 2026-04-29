@@ -637,6 +637,11 @@ function methodCard(name, value, role, detailId, detailHtml) {
     </div>
   `;
 }
+  function badgeClass(tone) {
+  return tone === 'green'
+    ? 'rounded-full bg-emerald-50 text-emerald-700 px-2 py-1 text-xs font-bold border border-emerald-200'
+    : 'rounded-full bg-amber-50 text-amber-700 px-2 py-1 text-xs font-bold border border-amber-200';
+}
 
 document.getElementById('result').innerHTML = card('시작하기', '<p class="text-slate-600">주소를 입력하고 등기부등본 파일을 업로드한 뒤 결과 계산하기를 눌러주세요.</p>');
 </script>
