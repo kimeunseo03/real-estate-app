@@ -290,7 +290,9 @@ function analyzeDocument() {
 }
 
 async function fetchOfficialPriceFromApi(address, parsed) {
-  const response = await fetch('/api/official-price', {
+  const area = Number(String(parsed.exclusiveArea || '').replace(/[^0-9.]/g, ''));
+
+  const response = await fetch('/api/transactions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -298,32 +300,39 @@ async function fetchOfficialPriceFromApi(address, parsed) {
       unitNumber: parsed.unitNumber,
       exclusiveArea: parsed.exclusiveArea,
       currentFloor: parsed.currentFloor,
-      totalFloors: parsed.totalFloors
+      totalFloors: parsed.totalFloors,
+      area
     })
   });
-  if (!response.ok) throw new Error('공시가격 API 응답 실패');
+
+  if (!response.ok) throw new Error('실거래가 API 응답 실패');
   return await response.json();
 }
 
 async function getMarketAnalysis(address, parsed) {
   try {
     const data = await fetchOfficialPriceFromApi(address, parsed);
-    const officialPrice = Number(data.officialPrice || data.price || data.investigationPrice || 0);
-    if (!officialPrice) throw new Error('공시가격 데이터 없음');
+
+    const investigationPrice = Number(data.investigationPrice || 0);
+
+    if (!investigationPrice) {
+      throw new Error(data.message || '실거래가 데이터 없음');
+    }
+
     return {
-      marketPriceSource: data.source || '공시가격 API',
-      transactionCount: data.transactionCount || '공시가격 기준',
-      upperPrice: null,
-      middlePrice: officialPrice,
-      lowerPrice: officialPrice,
-      appliedPriceType: '공시가격',
-      investigationPrice: officialPrice,
+      marketPriceSource: data.source || '공공데이터포털 실거래가 API',
+      transactionCount: data.transactionCount || 0,
+      upperPrice: data.upperPrice || null,
+      middlePrice: data.middlePrice || null,
+      lowerPrice: data.lowerPrice || null,
+      appliedPriceType: data.appliedPriceType || '하위값',
+      investigationPrice,
       apiConnected: true,
       errorMessage: ''
     };
   } catch (error) {
     return {
-      marketPriceSource: '공시가격 API 연결 필요',
+      marketPriceSource: '실거래가 API 연결 필요',
       transactionCount: 0,
       upperPrice: null,
       middlePrice: null,
@@ -331,7 +340,7 @@ async function getMarketAnalysis(address, parsed) {
       appliedPriceType: '데이터 부재',
       investigationPrice: null,
       apiConnected: false,
-      errorMessage: error.message || '공시가격 API 연결 실패'
+      errorMessage: error.message || '실거래가 API 연결 실패'
     };
   }
 }
