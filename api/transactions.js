@@ -8,7 +8,12 @@ export default async function handler(req, res) {
     const serviceKey = process.env.PUBLIC_DATA_API_KEY;
 
     if (!serviceKey) {
-      return res.status(500).json({ error: 'PUBLIC_DATA_API_KEY 환경변수가 없습니다.' });
+      return res.status(200).json({
+        investigationPrice: null,
+        source: '공공데이터포털 실거래가 API',
+        transactionCount: 0,
+        message: 'PUBLIC_DATA_API_KEY 환경변수가 없습니다.'
+      });
     }
 
     const lawdCode = getLawdCode(address);
@@ -18,11 +23,11 @@ export default async function handler(req, res) {
         investigationPrice: null,
         source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: '주소에서 법정동코드를 찾지 못했습니다.'
+        message: `주소에서 법정동코드를 찾지 못했습니다: ${address}`
       });
     }
 
-    const months = getRecentMonths(12);
+    const months = getRecentMonths(24);
     const allItems = [];
 
     for (const dealYmd of months) {
@@ -42,9 +47,9 @@ export default async function handler(req, res) {
         const areaText = getXml(item, 'excluUseAr') || getXml(item, '전용면적');
         const floorText = getXml(item, 'floor') || getXml(item, '층');
 
-        const priceManwon = Number(String(priceText).replace(/,/g, '').trim());
-        const exclusiveArea = Number(areaText);
-        const floor = Number(floorText);
+        const priceManwon = Number(String(priceText).replace(/,/g, '').replace(/\s/g, ''));
+        const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
+        const floor = Number(String(floorText).trim());
 
         if (priceManwon && exclusiveArea) {
           allItems.push({
@@ -60,15 +65,24 @@ export default async function handler(req, res) {
 
     const filtered = allItems.filter((item) => {
       if (!targetArea) return true;
-      return Math.abs(item.area - targetArea) <= 3;
+      return Math.abs(item.area - targetArea) <= 5;
     });
+
+    if (!allItems.length) {
+      return res.status(200).json({
+        investigationPrice: null,
+        source: '공공데이터포털 실거래가 API',
+        transactionCount: 0,
+        message: 'API 응답은 왔지만 거래 item을 파싱하지 못했습니다.'
+      });
+    }
 
     if (!filtered.length) {
       return res.status(200).json({
         investigationPrice: null,
         source: '공공데이터포털 실거래가 API',
         transactionCount: 0,
-        message: '유사 면적 실거래가 데이터 부재'
+        message: `거래 ${allItems.length}건은 있으나 전용면적 ${targetArea}㎡ ±5㎡ 유사 거래가 없습니다.`
       });
     }
 
@@ -91,16 +105,18 @@ export default async function handler(req, res) {
       investigationPrice: useLower ? lowerPrice : middlePrice
     });
   } catch (error) {
-    return res.status(500).json({
-      error: '실거래가 API 조회 실패',
-      detail: error.message
+    return res.status(200).json({
+      investigationPrice: null,
+      source: '공공데이터포털 실거래가 API',
+      transactionCount: 0,
+      message: `실거래가 API 조회 실패: ${error.message}`
     });
   }
 }
 
 function getXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
-  return match ? match[1] : '';
+  return match ? match[1].trim() : '';
 }
 
 function getRecentMonths(count) {
