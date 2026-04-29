@@ -1,9 +1,8 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
       return res.status(405).json({
-        investigationPrice: null,
-        transactionCount: 0,
+        error: 'POST만 허용됩니다.',
         message: 'POST만 허용됩니다.'
       });
     }
@@ -15,7 +14,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         investigationPrice: null,
         transactionCount: 0,
-        message: '❌ API KEY 없음 (Vercel 환경변수 확인)'
+        message: '❌ API KEY 없음: Vercel 환경변수 PUBLIC_DATA_API_KEY를 확인하세요.'
       });
     }
 
@@ -29,7 +28,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const months = getRecentMonths(24);
+    const months = getRecentMonths(36);
     const allItems = [];
 
     for (const dealYmd of months) {
@@ -42,7 +41,6 @@ export default async function handler(req, res) {
       const response = await fetch(url);
       const xml = await response.text();
 
-      // 👉 API 에러 그대로 출력
       if (xml.includes('SERVICE KEY IS NOT REGISTERED ERROR')) {
         return res.status(200).json({
           investigationPrice: null,
@@ -58,8 +56,8 @@ export default async function handler(req, res) {
         const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr');
         const floorText = getXml(item, '층') || getXml(item, 'floor');
 
-        const priceManwon = Number(String(priceText).replace(/,/g, '').trim());
-        const exclusiveArea = Number(String(areaText).trim());
+        const priceManwon = Number(String(priceText).replace(/,/g, '').replace(/\s/g, ''));
+        const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
         const floor = Number(String(floorText).trim());
 
         if (priceManwon && exclusiveArea) {
@@ -76,7 +74,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         investigationPrice: null,
         transactionCount: 0,
-        message: `❌ ${lawdCode} 지역 실거래 데이터 없음`
+        message: `❌ ${lawdCode} 지역 최근 36개월 실거래 데이터 없음`
       });
     }
 
@@ -91,7 +89,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         investigationPrice: null,
         transactionCount: 0,
-        message: `❌ 면적 ${targetArea}㎡ 유사 거래 없음 (전체 ${allItems.length}건)`
+        message: `❌ 면적 ${targetArea}㎡ 유사 거래 없음. 전체 거래 ${allItems.length}건`
       });
     }
 
@@ -105,13 +103,15 @@ export default async function handler(req, res) {
     const useLower = currentFloor && medianFloor ? currentFloor < medianFloor : true;
 
     return res.status(200).json({
+      source: '공공데이터포털 실거래가 API',
       transactionCount: filtered.length,
+      totalRawCount: allItems.length,
       upperPrice,
       middlePrice,
       lowerPrice,
       appliedPriceType: useLower ? '하위값' : '중위값',
       investigationPrice: useLower ? lowerPrice : middlePrice,
-      message: `✅ 성공 (${filtered.length}건)`
+      message: `✅ 성공: 유사 면적 거래 ${filtered.length}건 / 전체 ${allItems.length}건`
     });
 
   } catch (error) {
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
       message: `❌ 서버 오류: ${error.message}`
     });
   }
-}
+};
 
 function getXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
