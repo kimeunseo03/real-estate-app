@@ -95,7 +95,8 @@ module.exports = async function handler(req, res) {
 
     const targetArea = Number(area || 0);
     const normalizedAptName = normalizeAptName(aptName);
-
+    console.log('등기부 단지명:', normalizedAptName);
+    console.log('API 단지명 샘플:', allItems.slice(0, 5).map(i => i.name));
     let filtered = allItems;
 
     if (normalizedAptName && normalizedAptName !== '확인필요') {
