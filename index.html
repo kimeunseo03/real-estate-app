@@ -50,7 +50,6 @@
           </div>
 
           <div id="fileStatus" class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">업로드된 파일 없음</div>
-          <div id="pdfPreview" class="mt-4 space-y-4"></div>
 
           <button onclick="analyzeDocument()" class="mt-3 w-full rounded-xl bg-slate-900 text-white py-3 font-bold">
             문서 인식 및 자동 분석
@@ -288,7 +287,6 @@ async function handleFile(event) {
 
   try {
     if (fileType === 'application/pdf' || lowerName.endsWith('.pdf')) {
-      await renderPDFPreview(file);
 
       try {
         registryText = await extractTextFromPDF(file);
@@ -373,20 +371,6 @@ async function renderPDFPreview(file) {
   }
 }
 
-async function renderImagePreview(file) {
-  const preview = document.getElementById('pdfPreview');
-  if (!preview) return;
-
-  const url = URL.createObjectURL(file);
-
-  preview.innerHTML = `
-    <div class="rounded-2xl bg-white border border-slate-200 p-4">
-      <p class="font-bold mb-3">업로드한 이미지 미리보기</p>
-      <img src="${url}" class="w-full rounded-xl border border-slate-200 shadow-sm" />
-    </div>
-  `;
-}
-  
 function readTextFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
