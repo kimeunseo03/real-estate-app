@@ -1,23 +1,30 @@
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
-      return res.status(405).json({ message: 'POST만 허용됩니다.' });
+      return res.status(405).json({
+        error: 'POST만 허용됩니다.',
+        message: 'POST만 허용됩니다.'
+      });
     }
 
     const { address, area, currentFloor, totalFloors, aptName } = req.body || {};
-    const publicKey = process.env.PUBLIC_DATA_API_KEY;
-    const vworldKey = process.env.VWORLD_API_KEY;
+    const serviceKey = process.env.PUBLIC_DATA_API_KEY;
 
-    if (!publicKey) return res.status(200).json({ investigationPrice: null, message: '❌ PUBLIC_DATA_API_KEY 없음' });
-    if (!vworldKey) return res.status(200).json({ investigationPrice: null, message: '❌ VWORLD_API_KEY 없음' });
-    if (!address) return res.status(200).json({ investigationPrice: null, message: '❌ 주소 없음' });
-
-    const geo = await getVworldGeo(address, vworldKey);
-    if (!geo || !geo.lawdCode) {
+    if (!serviceKey) {
       return res.status(200).json({
         investigationPrice: null,
-        message: '❌ VWorld 주소 변환 실패 또는 법정동코드 확인 실패',
-        geo
+        transactionCount: 0,
+        message: '❌ API KEY 없음: Vercel 환경변수 PUBLIC_DATA_API_KEY를 확인하세요.'
+      });
+    }
+
+    const lawdCode = getLawdCode(address);
+
+    if (!lawdCode) {
+      return res.status(200).json({
+        investigationPrice: null,
+        transactionCount: 0,
+        message: `❌ 법정동코드 매칭 실패: ${address}`
       });
     }
 
@@ -27,24 +34,40 @@ module.exports = async function handler(req, res) {
     for (const dealYmd of months) {
       const url =
         'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade' +
-        `?serviceKey=${publicKey}` +
-        `&LAWD_CD=${geo.lawdCode}` +
+        `?serviceKey=${serviceKey}` +
+        `&LAWD_CD=${lawdCode}` +
         `&DEAL_YMD=${dealYmd}`;
 
       const response = await fetch(url);
       const xml = await response.text();
 
       if (xml.includes('SERVICE KEY IS NOT REGISTERED ERROR')) {
-        return res.status(200).json({ investigationPrice: null, message: '❌ 공공데이터 API KEY 인증 실패' });
+        return res.status(200).json({
+          investigationPrice: null,
+          transactionCount: 0,
+          message: '❌ API KEY 인증 실패'
+        });
       }
 
       const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
       for (const item of items) {
-        const name = getXml(item, '아파트') || getXml(item, 'aptNm') || '';
-        const priceText = getXml(item, '거래금액') || getXml(item, 'dealAmount');
-        const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr');
-        const floorText = getXml(item, '층') || getXml(item, 'floor');
+        const name =
+          getXml(item, '아파트') ||
+          getXml(item, 'aptNm') ||
+          '';
+
+        const priceText =
+          getXml(item, '거래금액') ||
+          getXml(item, 'dealAmount');
+
+        const areaText =
+          getXml(item, '전용면적') ||
+          getXml(item, 'excluUseAr');
+
+        const floorText =
+          getXml(item, '층') ||
+          getXml(item, 'floor');
 
         const priceManwon = Number(String(priceText).replace(/,/g, '').replace(/\s/g, ''));
         const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
@@ -65,28 +88,38 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         investigationPrice: null,
         transactionCount: 0,
-        geo,
-        message: `❌ ${geo.lawdCode} 지역 최근 24개월 실거래 데이터 없음`
+        lawdCode,
+        message: `❌ ${lawdCode} 지역 최근 24개월 실거래 데이터 없음`
       });
     }
 
+    const targetArea = Number(area || 0);
     const normalizedAptName = normalizeAptName(aptName);
+
     let filtered = allItems;
 
-    if (normalizedAptName) {
-      const sameComplex = filtered.filter(item =>
-        normalizeAptName(item.name).includes(normalizedAptName) ||
-        normalizedAptName.includes(normalizeAptName(item.name))
-      );
+    if (normalizedAptName && normalizedAptName !== '확인필요') {
+      const sameApt = filtered.filter((item) => {
+        const itemName = normalizeAptName(item.name);
+        return itemName && (
+          itemName.includes(normalizedAptName) ||
+          normalizedAptName.includes(itemName)
+        );
+      });
 
-      if (sameComplex.length) filtered = sameComplex;
+      if (sameApt.length) {
+        filtered = sameApt;
+      }
     }
 
-    const targetArea = Number(area || 0);
-
     if (targetArea) {
-      const areaFiltered = filtered.filter(item => Math.abs(item.area - targetArea) <= 10);
-      if (areaFiltered.length) filtered = areaFiltered;
+      const areaFiltered = filtered.filter((item) => {
+        return Math.abs(item.area - targetArea) <= 10;
+      });
+
+      if (areaFiltered.length) {
+        filtered = areaFiltered;
+      }
     }
 
     if (!filtered.length) {
@@ -94,12 +127,13 @@ module.exports = async function handler(req, res) {
         investigationPrice: null,
         transactionCount: 0,
         totalRawCount: allItems.length,
-        geo,
-        message: '❌ 동일 단지/유사 면적 거래 없음'
+        lawdCode,
+        message: `❌ 유사 거래 없음. 전체 거래 ${allItems.length}건`
       });
     }
 
-    const prices = filtered.map(item => item.price).sort((a, b) => a - b);
+    const prices = filtered.map((item) => item.price).sort((a, b) => a - b);
+
     const upperPrice = prices[prices.length - 1];
     const pricesWithoutUpper = prices.length >= 3 ? prices.slice(0, -1) : prices;
 
@@ -110,10 +144,8 @@ module.exports = async function handler(req, res) {
     const useLower = currentFloor && medianFloor ? currentFloor < medianFloor : true;
 
     return res.status(200).json({
-      source: 'VWorld Geocoder + 공공데이터포털 실거래가 API',
-      geo,
-      aptName,
-      lawdCode: geo.lawdCode,
+      source: '공공데이터포털 실거래가 API',
+      lawdCode,
       transactionCount: filtered.length,
       usedTransactionCount: pricesWithoutUpper.length,
       totalRawCount: allItems.length,
@@ -123,8 +155,9 @@ module.exports = async function handler(req, res) {
       excludedUpperPrice: prices.length >= 3 ? upperPrice : null,
       appliedPriceType: useLower ? '하위값' : '중위값',
       investigationPrice: useLower ? lowerPrice : middlePrice,
-      message: `✅ 성공: ${geo.lawdCode} / 동일단지·유사면적 기준 ${filtered.length}건 분석`
+      message: `✅ 성공: 유사 거래 ${filtered.length}건 기준 산정`
     });
+
   } catch (error) {
     return res.status(200).json({
       investigationPrice: null,
@@ -133,107 +166,6 @@ module.exports = async function handler(req, res) {
     });
   }
 };
-
-async function getVworldGeo(address, key) {
-  const types = ['road', 'parcel'];
-
-  for (const type of types) {
-    const url =
-      'https://api.vworld.kr/req/address' +
-      '?service=address' +
-      '&request=getcoord' +
-      '&version=2.0' +
-      '&crs=EPSG:4326' +
-      '&format=json' +
-      '&refine=true' +
-      '&simple=false' +
-      `&type=${type}` +
-      `&address=${encodeURIComponent(address)}` +
-      `&key=${key}`;
-
-    const response = await fetch(url);
-    const data = await response.json().catch(() => null);
-
-    const result = data?.response?.result;
-    const point = result?.point;
-
-    if (point?.x && point?.y) {
-      const fullCode =
-        result?.structure?.level4LC ||
-        result?.structure?.level4LCode ||
-        result?.structure?.level5LC ||
-        result?.structure?.level5LCode ||
-        result?.zipcode ||
-        '';
-
-      const lawdFullCode = String(fullCode || '').replace(/[^0-9]/g, '');
-      const lawdCode = lawdFullCode.length >= 5 ? lawdFullCode.slice(0, 5) : fallbackLawdCode(address);
-
-      return {
-        x: point.x,
-        y: point.y,
-        lawdFullCode,
-        lawdCode,
-        type,
-        refinedAddress: result?.text || address,
-        mapImageUrl: makeStaticMapUrl(point.x, point.y, key)
-      };
-    }
-  }
-
-  return {
-    lawdCode: fallbackLawdCode(address),
-    refinedAddress: address,
-    mapImageUrl: null
-  };
-}
-
-function makeStaticMapUrl(x, y, key) {
-  return (
-    'https://api.vworld.kr/req/image' +
-    '?service=image' +
-    '&request=getmap' +
-    '&version=2.0' +
-    '&format=png' +
-    '&crs=EPSG:4326' +
-    `&center=${x},${y}` +
-    '&level=17' +
-    '&size=700,420' +
-    `&markers=${x},${y}` +
-    `&key=${key}`
-  );
-}
-
-function fallbackLawdCode(address = '') {
-  const text = String(address || '');
-
-  const map = [
-    ['서울특별시 종로구', '11110'], ['서울특별시 중구', '11140'], ['서울특별시 용산구', '11170'],
-    ['서울특별시 성동구', '11200'], ['서울특별시 광진구', '11215'], ['서울특별시 동대문구', '11230'],
-    ['서울특별시 중랑구', '11260'], ['서울특별시 성북구', '11290'], ['서울특별시 강북구', '11305'],
-    ['서울특별시 도봉구', '11320'], ['서울특별시 노원구', '11350'], ['서울특별시 은평구', '11380'],
-    ['서울특별시 서대문구', '11410'], ['서울특별시 마포구', '11440'], ['서울특별시 양천구', '11470'],
-    ['서울특별시 강서구', '11500'], ['서울특별시 구로구', '11530'], ['서울특별시 금천구', '11545'],
-    ['서울특별시 영등포구', '11560'], ['서울특별시 동작구', '11590'], ['서울특별시 관악구', '11620'],
-    ['서울특별시 서초구', '11650'], ['서울특별시 강남구', '11680'], ['서울특별시 송파구', '11710'],
-    ['서울특별시 강동구', '11740'],
-
-    ['광주광역시 동구', '29110'], ['광주광역시 서구', '29140'], ['광주광역시 남구', '29155'],
-    ['광주광역시 북구', '29170'], ['광주광역시 광산구', '29200'],
-
-    ['나주시', '46170']
-  ];
-
-  const found = map.find(([name]) => text.includes(name) || text.includes(name.replace('특별시 ', '')) || text.includes(name.replace('광역시 ', '')));
-  return found ? found[1] : null;
-}
-
-function normalizeAptName(name = '') {
-  return String(name || '')
-    .replace(/\s/g, '')
-    .replace(/아파트|APT|apt|단지|동/g, '')
-    .trim();
-}
 
 function getXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
@@ -252,4 +184,31 @@ function getRecentMonths(count) {
   }
 
   return result;
+}
+
+function normalizeAptName(name = '') {
+  return String(name || '')
+    .replace(/\s/g, '')
+    .replace(/아파트|APT|apt|단지|제\d+동|제\d+호/g, '')
+    .trim();
+}
+
+function getLawdCode(address = '') {
+  const text = String(address || '');
+
+  if (text.includes('광주광역시 동구') || text.includes('광주 동구')) return '29110';
+  if (text.includes('광주광역시 서구') || text.includes('광주 서구')) return '29140';
+  if (text.includes('광주광역시 남구') || text.includes('광주 남구')) return '29155';
+  if (text.includes('광주광역시 북구') || text.includes('광주 북구')) return '29170';
+  if (text.includes('광주광역시 광산구') || text.includes('광주 광산구')) return '29200';
+
+  if (text.includes('나주시')) return '46170';
+
+  if (text.includes('서울특별시 동대문구') || text.includes('동대문구')) return '11230';
+  if (text.includes('서울특별시 강남구') || text.includes('강남구')) return '11680';
+  if (text.includes('서울특별시 송파구') || text.includes('송파구')) return '11710';
+  if (text.includes('서울특별시 강동구') || text.includes('강동구')) return '11740';
+  if (text.includes('서울특별시 서초구') || text.includes('서초구')) return '11650';
+
+  return null;
 }
