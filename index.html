@@ -317,12 +317,19 @@ function parseRegistry(text) {
   const hasMortgageSetting = /근저당권설정/.test(raw);
   const hasMortgageCancel = /근저당권설정[\s\S]*?(근저당권설정등기말소|근저당권설정등|해지)/.test(raw);
 
-  const mortgageStatus = hasNoMortgageSummary || (hasMortgageSetting && hasMortgageCancel)
-    let seniorMortgageAmount = 0;
+  let seniorMortgageAmount = 0;
+  let mortgageList = [];
+
+  const mortgageStatus =
+    hasNoMortgageSummary || (hasMortgageSetting && hasMortgageCancel)
+      ? '현재 유효한 근저당 없음'
+      : hasMortgageSetting
+        ? '근저당 확인 필요'
+        : '현재 유효한 근저당 없음';
     let mortgageList = [];
   const summaryMortgageBlock = getMatch(
     raw,
-    /3\.\s*\(근\)\s*저당권[\s\S]*?(?=\[\s*참\s*고\s*사\s*항\s*\]|$)/,\
+    /3\.\s*\(근\)\s*저당권[\s\S]*?(?=\[\s*참\s*고\s*사\s*항\s*\]|$)/,
     ''
 );
 
