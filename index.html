@@ -38,10 +38,17 @@
           <div class="rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 text-center">
             <div class="text-3xl mb-2">📄</div>
             <p class="font-bold">PDF 업로드</p>
-            <button type="button" onclick="document.getElementById('registryFile').click()" class="mt-4 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
-              파일 선택
-            </button>
-            <input id="registryFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.txt" style="display:none" onchange="handleFile(event)" />
+            <label for="registryFile" class="inline-block mt-4 cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
+  파일 선택
+  </label>
+
+  <input
+    id="registryFile"
+    type="file"
+    accept="application/pdf,image/*,.txt"
+    class="hidden"
+    onchange="e(event)"
+  />
           </div>
 
           <div id="fileStatus" class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">업로드된 파일 없음</div>
@@ -257,13 +264,20 @@ function extractMortgageList(raw) {
 }
 
 async function handleFile(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
+  const input = event.target;
+  const file = input.files && input.files[0];
+
+  if (!file) {
+    document.getElementById('fileStatus').innerHTML =
+      `<span class="font-bold text-amber-700">선택된 파일이 없습니다.</span>`;
+    return;
+  }
 
   registryText = '';
   lastParsedResult = null;
 
   const fileName = file.name || '';
+  const fileType = file.type || '';
   const lowerName = fileName.toLowerCase();
 
   const fileStatus = document.getElementById('fileStatus');
@@ -272,17 +286,29 @@ async function handleFile(event) {
   if (pdfPreview) pdfPreview.innerHTML = '';
 
   fileStatus.innerHTML =
-    `업로드 완료: ${fileName}<br><span class="text-slate-500">문서 텍스트를 읽는 중입니다...</span>`;
+    `업로드 완료: ${fileName}<br><span class="text-slate-500">파일을 읽는 중입니다...</span>`;
 
   try {
-    if (lowerName.endsWith('.txt')) {
-      registryText = await readTextFile(file);
-    } else if (lowerName.endsWith('.pdf')) {
-      registryText = await extractTextFromPDF(file);
+    if (fileType === 'application/pdf' || lowerName.endsWith('.pdf')) {
       await renderPDFPreview(file);
-    } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) {
-      registryText = await extractTextFromImage(file);
+
+      try {
+        registryText = await extractTextFromPDF(file);
+      } catch (pdfTextError) {
+        registryText = '';
+        fileStatus.innerHTML =
+          `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">PDF 미리보기는 표시했지만 텍스트 추출은 실패했습니다. 스캔본이면 OCR이 필요합니다.</span>`;
+        input.value = '';
+        return;
+      }
+
+    } else if (fileType.startsWith('image/') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) {
       await renderImagePreview(file);
+      registryText = await extractTextFromImage(file);
+
+    } else if (lowerName.endsWith('.txt')) {
+      registryText = await readTextFile(file);
+
     } else {
       throw new Error('지원하지 않는 파일 형식입니다.');
     }
@@ -291,18 +317,19 @@ async function handleFile(event) {
       fileStatus.innerHTML =
         `업로드 완료: ${fileName}<br><span class="text-emerald-700 font-bold">문서 텍스트를 읽었습니다.</span>`;
     } else {
-      registryText = '';
       fileStatus.innerHTML =
-        `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">텍스트가 부족합니다. 스캔본 또는 이미지 품질을 확인해주세요.</span>`;
+        `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">파일은 업로드됐지만 추출된 텍스트가 부족합니다. 스캔본이면 이미지/OCR 방식이 필요합니다.</span>`;
     }
+
   } catch (error) {
     registryText = '';
     lastParsedResult = null;
-    if (pdfPreview) pdfPreview.innerHTML = '';
 
     fileStatus.innerHTML =
       `<span class="font-bold text-amber-700">파일을 읽지 못했습니다: ${error.message || error}</span>`;
   }
+
+  input.value = '';
 }
   
 async function renderPDFPreview(file) {
