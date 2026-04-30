@@ -351,28 +351,50 @@ function parseRegistry(text) {
   const hasMortgageSetting = /근저당권설정/.test(raw);
   const hasMortgageCancel = /근저당권설정[\s\S]*?(근저당권설정등기말소|해지|말소)/.test(raw);
 
-  const mortgageSource = raw;
-  const mortgageBlocks = Array.from(
-    mortgageSource.matchAll(/(\d+)\s+근저당권설정[\s\S]*?(?=\n\s*\d+\s+근저당권설정|\n\s*\d+\s+[가-힣]+권|【 갑 구 】|【 을 구 】|$)/g)
-  ).map(m => m[0]);
+  const eulguStart = raw.indexOf('【 을 구 】');
+const referenceStart = raw.indexOf('참 고 사 항', eulguStart);
 
-  let mortgageList = mortgageBlocks.map((block, index) => {
-    const amountText = getMatch(block, /채권최고액\s*금\s*([\d,]+)\s*원/, '') ||
-                       getMatch(block, /채권액\s*금\s*([\d,]+)\s*원/, '');
+const mortgageSource =
+  eulguStart >= 0
+    ? raw.slice(eulguStart, referenceStart > eulguStart ? referenceStart : raw.length)
+    : '';
 
-    let lender = getMatch(block, /근저당권자\s+([^\n\r]+)/, '');
-    lender = lender
-      .replace(/채무자[\s\S]*/g, '')
-      .replace(/주소[\s\S]*/g, '')
-      .replace(/공동담보[\s\S]*/g, '')
-      .trim();
+const mortgageBlocks = Array.from(
+  mortgageSource.matchAll(
+    /(\d+)\s+근저당권설정[\s\S]*?(?=\n\s*\d+\s+[가-힣()·\s]+|$)/g
+  )
+).map(m => m[0]);
 
-    return {
-      rank: index + 1,
-      lender: lender || '확인 필요',
-      amount: Number(String(amountText).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
-    };
-  }).filter(item => item.amount > 0);
+let mortgageList = mortgageBlocks.map((block, index) => {
+  const amountText =
+    getMatch(block, /채권최고액\s*금\s*([\d,]+)\s*원/, '') ||
+    getMatch(block, /채권액\s*금\s*([\d,]+)\s*원/, '');
+
+  const lenderLine =
+    getMatch(block, /근저당권자\s+([^\n\r]+)/, '') ||
+    getMatch(block, /권리자\s+([^\n\r]+)/, '');
+
+  let lender = lenderLine
+    .replace(/\s{2,}/g, ' ')
+    .replace(/채무자.*$/g, '')
+    .replace(/주소.*$/g, '')
+    .replace(/공동담보.*$/g, '')
+    .replace(/목록.*$/g, '')
+    .replace(/말소.*$/g, '')
+    .trim();
+
+  // OCR 또는 PDF 텍스트가 "근저당권자 주식회사국민은행 110111..."처럼 붙는 경우 정리
+  lender = lender
+    .replace(/\d{6,}.*/g, '')
+    .replace(/[|()[\]{}]/g, '')
+    .trim();
+
+  return {
+    rank: index + 1,
+    lender: lender || '확인 필요',
+    amount: Number(String(amountText).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
+  };
+}).filter(item => item.amount > 0 && item.lender !== '확인 필요');
 
   if (!mortgageList.length) {
     const fallbackMatches = Array.from(
