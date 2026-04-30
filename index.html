@@ -95,15 +95,18 @@ function formatMoney(n) {
   if (typeof n === 'string') return n;
   if (!Number.isFinite(n)) return '확인 필요';
 
-  if (n >= 100000000) {
-    const eok = Math.floor(n / 100000000);
-    const man = Math.floor((n % 100000000) / 10000);
-    return man ? `${eok}억 ${man.toLocaleString()}만원` : `${eok}억원`;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+
+  if (abs >= 100000000) {
+    const eok = Math.floor(abs / 100000000);
+    const man = Math.floor((abs % 100000000) / 10000);
+    return man ? `${sign}${eok}억 ${man.toLocaleString()}만원` : `${sign}${eok}억원`;
   }
 
-  return `${Math.max(0, n).toLocaleString()}원`;
+  return `${sign}${abs.toLocaleString()}원`;
 }
-
+  
 function parseMoney(v) {
   return Number(String(v || '').replace(/[^0-9]/g, '')) || 0;
 }
@@ -601,9 +604,9 @@ async function calculate() {
     : calculatePriorityRepayment(address, parsed.detailType, deposit);
 
   const finalValue = Number.isFinite(collateralBase)
-    ? Math.max(0, collateralBase - deposit - priorityRepayment - parsed.seniorMortgageAmount)
-    : null;
-
+    ? collateralBase - deposit - priorityRepayment - parsed.seniorMortgageAmount
+  : null;
+  
   const costApproach = calculateCostApproach(parsed.exclusiveArea);
   const incomeApproach = calculateIncomeApproach();
 
