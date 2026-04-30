@@ -808,48 +808,6 @@ ${card('감정평가 3방식 비교', `
         })}
       `)}
 
-          ${methodCard(
-            '수익환원법',
-            formatMoney(incomeApproach),
-            '가중치 20%',
-            'incomeDetail',
-            `
-              <b>방식</b><br>
-              대상 부동산에서 발생 가능한 순수익을 환원율로 나누어 수익가치를 산정합니다.<br><br>
-              <b>적용식</b><br>
-              수익환원가액 = 연간 순수익 ÷ 환원율<br><br>
-              <b>현재 적용</b><br>
-              월 임대료 추정: ${formatMoney(2300000)}<br>
-              연간 총수익: ${formatMoney(2300000 * 12)}<br>
-              순수익률: 82%<br>
-              환원율: 4.2%<br><br>
-              <b>결론</b><br>
-              수익환원법 시산가액 = ${formatMoney(incomeApproach)}
-            `
-          )}
-
-          ${methodCard(
-            '원가법',
-            formatMoney(costApproach),
-            '가중치 10%',
-            'costDetail',
-            `
-              <b>방식</b><br>
-              토지기여액과 건물 재조달원가를 합산하고 감가수정을 반영하여 가격을 산정합니다.<br><br>
-              <b>적용식</b><br>
-              원가법 가액 = 토지기여액 + 전유면적 × 재조달원가 × (1 - 감가율)<br><br>
-              <b>현재 적용</b><br>
-              전유면적: ${parsed.exclusiveArea}<br>
-              재조달원가: ㎡당 ${formatMoney(5200000)}<br>
-              감가율: 32%<br>
-              토지기여액: ${formatMoney(360000000)}<br><br>
-              <b>결론</b><br>
-              원가법 시산가액 = ${formatMoney(costApproach)}
-            `
-          )}
-        </div>
-      `)}
-
       ${card('2단계 담보 인정가 산정', `
         <p>담보 인정가 = 1단계 시산가액 × LTV 70%</p>
         <p><b>${formatMoney(weightedAppraisalValue)} × 70% = ${formatMoney(collateralBase)}</b></p>
