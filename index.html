@@ -286,15 +286,16 @@ function parseRegistry(text) {
   const mortgageSource = summaryMortgageBlock || raw;
 
   const mortgageMatches = Array.from(
-    mortgageSource.matchAll(/(\d+)\s+근저당권설정[\s\S]*?채권최고액\s*금\s*([\d,]+)\s*원[\s\S]*?근저당권자\s+([^\n]+)/g)
-  );
+  mortgageSource.matchAll(
+    /근저당권설정[\s\S]*?채권최고액\s*금?\s*([\d,]+)\s*원[\s\S]*?근저당권자\s*([^\n\r]+)/g
+  )
+);
 
   const mortgageList = mortgageMatches.map((m, index) => ({
     rank: index + 1,
-    originalRank: m[1],
-    lender: String(m[3] || '').trim(),
-    amount: Number(String(m[2]).replace(/,/g, '')) || 0
-  }));
+    lender: String(m[2] || '').trim(),
+    amount: Number(String(m[2]).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
+}));
 
   const seniorMortgageAmount = mortgageList.reduce((sum, item) => sum + item.amount, 0);
 
