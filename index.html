@@ -558,10 +558,18 @@ function calculateCostApproach(areaText) {
   return Math.round(area * replacementCostPerSqm * (1 - depreciationRate) + landContribution);
 }
 
-function calculateIncomeApproach() {
-  const monthlyRentEstimate = 2300000;
-  const annualNetIncome = monthlyRentEstimate * 12 * 0.82;
-  const capRate = 0.042;
+function calculateIncomeApproachFromRent(rentDeals, capRate = 0.045) {
+  if (!rentDeals || !rentDeals.length) return null;
+
+  const convertedRents = rentDeals
+    .map(d => convertToMonthlyRent(d.deposit, d.monthlyRent))
+    .filter(v => Number.isFinite(v) && v > 0)
+    .sort((a, b) => a - b);
+
+  if (!convertedRents.length) return null;
+
+  const medianMonthlyRent = convertedRents[Math.floor(convertedRents.length / 2)];
+  const annualNetIncome = medianMonthlyRent * 12 * 0.82;
 
   return Math.round(annualNetIncome / capRate);
 }
