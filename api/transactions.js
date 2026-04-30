@@ -141,7 +141,7 @@ async function getVworldGeo(address, key) {
     const url =
       'https://api.vworld.kr/req/address' +
       '?service=address' +
-      '&request=getCoord' +
+      '&request=getcoord' +
       '&version=2.0' +
       '&crs=EPSG:4326' +
       '&format=json' +
