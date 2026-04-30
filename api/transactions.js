@@ -30,27 +30,30 @@ module.exports = async function handler(req, res) {
     const months = getRecentMonths(24);
     const allItems = [];
 
-    for (const dealYmd of months) {
-      const url =
-        'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade' +
-        `?serviceKey=${serviceKey}` +
-        `&LAWD_CD=${lawdCode}` +
-        `&DEAL_YMD=${dealYmd}`;
+    async function fetchWithTimeout(url, ms = 7000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
 
-      const response = await fetch(url);
-      const xml = await response.text();
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-      if (xml.includes('SERVICE KEY IS NOT REGISTERED ERROR')) {
-        return res.status(200).json({
-          investigationPrice: null,
-          transactionCount: 0,
-          message: '❌ API KEY 인증 실패'
-        });
-      }
+const promises = months.map(dealYmd => {
+  const url =
+    'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade' +
+    `?serviceKey=${serviceKey}` +
+    `&LAWD_CD=${lawdCode}` +
+    `&DEAL_YMD=${dealYmd}`;
 
+  return fetchWithTimeout(url, 7000)
+    .then(xml => {
       const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
-      for (const item of items) {
+      return items.map(item => {
         const name =
           getXml(item, '아파트') ||
           getXml(item, 'aptNm') ||
@@ -73,15 +76,22 @@ module.exports = async function handler(req, res) {
         const floor = Number(String(floorText).trim());
 
         if (priceManwon && exclusiveArea) {
-          allItems.push({
+          return {
             name,
             price: priceManwon * 10000,
             area: exclusiveArea,
             floor
-          });
+          };
         }
-      }
-    }
+
+        return null;
+      }).filter(Boolean);
+    })
+    .catch(() => []);
+});
+
+const results = await Promise.all(promises);
+const allItems = results.flat();
 
     if (!allItems.length) {
       return res.status(200).json({
