@@ -672,6 +672,40 @@ async function calculate() {
         ['적용 시세', market.appliedPriceType]
       ]))}
 
+${card('감정평가 3방식 비교', `
+  ${methodTabs(
+    `
+      <p class="font-bold mb-4">거래사례비교법은 인근 유사 거래사례를 기준으로 시산가액을 산정합니다.</p>
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p>상위값: ${formatMoney(market.upperPrice)} / 이상치 제외</p>
+        <p>중위값: ${formatMoney(market.middlePrice)}</p>
+        <p>하위값: ${formatMoney(market.lowerPrice)}</p>
+        <p>적용 시세: ${market.appliedPriceType}</p>
+        <p class="mt-3 font-bold">거래사례비교법 시산가액: ${formatMoney(salesComparisonValue)}</p>
+      </div>
+    `,
+    `
+      <p class="font-bold mb-4">수익환원법은 예상 임대수익을 환원율로 나누어 가치를 산정합니다.</p>
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p>월 임대료 추정: ${formatMoney(2300000)}</p>
+        <p>연간 순수익: ${formatMoney(2300000 * 12 * 0.82)}</p>
+        <p>환원율: 4.2%</p>
+        <p class="mt-3 font-bold">수익환원법 시산가액: ${formatMoney(incomeApproach)}</p>
+      </div>
+    `,
+    `
+      <p class="font-bold mb-4">원가법은 토지기여액과 건물 재조달원가를 기준으로 가치를 산정합니다.</p>
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p>전유면적: ${parsed.exclusiveArea}</p>
+        <p>재조달원가: ㎡당 ${formatMoney(5200000)}</p>
+        <p>감가율: 32%</p>
+        <p>토지기여액: ${formatMoney(360000000)}</p>
+        <p class="mt-3 font-bold">원가법 시산가액: ${formatMoney(costApproach)}</p>
+      </div>
+    `
+  )}
+`)}
+
       ${card('1단계 감정평가 3방식 종합 및 시산가액 조정', `
         ${appraisalTable({
           salesComparisonValue,
@@ -680,29 +714,6 @@ async function calculate() {
           weightedAppraisalValue
         })}
       `)}
-
-      ${card('감정평가 3방식 비교', `
-        <div class="grid gap-3 md:grid-cols-3">
-          ${methodCard(
-            '거래사례비교법',
-            formatMoney(salesComparisonValue),
-            '가중치 70%',
-            'salesDetail',
-            `
-              <b>방식</b><br>
-              인근 유사 거래사례를 기준으로 대상 부동산의 시장가치를 산정합니다.<br><br>
-              <b>적용식</b><br>
-              거래사례비교법 시산가액 = 유사 면적 실거래가 중 층수 기준 적용값<br><br>
-              <b>현재 적용</b><br>
-              상위값: ${formatMoney(market.upperPrice)} / 이상치로 제외<br>
-              중위값: ${formatMoney(market.middlePrice)}<br>
-              하위값: ${formatMoney(market.lowerPrice)}<br>
-              적용 시세: ${market.appliedPriceType}<br>
-              산정 사용 건수: ${market.usedTransactionCount || 0}건<br><br>
-              <b>결론</b><br>
-              거래사례비교법 시산가액 = ${formatMoney(salesComparisonValue)}
-            `
-          )}
 
           ${methodCard(
             '수익환원법',
@@ -890,7 +901,43 @@ function appraisalTable(values) {
     </div>
   `;
 }
+function showMethodTab(tabId) {
+  const tabs = ['salesTab', 'incomeTab', 'costTab'];
+  const contents = ['salesContent', 'incomeContent', 'costContent'];
 
+  tabs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.className = id === tabId
+        ? 'px-4 py-3 border border-slate-300 border-b-white bg-white font-bold text-slate-900 rounded-t-xl'
+        : 'px-4 py-3 border border-slate-300 bg-slate-100 text-slate-500 rounded-t-xl';
+    }
+  });
+
+  contents.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id.startsWith(tabId.replace('Tab', '')) ? 'block' : 'none';
+  });
+}
+
+function methodTabs(salesHtml, incomeHtml, costHtml) {
+  return `
+    <div>
+      <div class="flex gap-1 border-b border-slate-300">
+        <button id="salesTab" type="button" onclick="showMethodTab('salesTab')" class="px-4 py-3 border border-slate-300 border-b-white bg-white font-bold text-slate-900 rounded-t-xl">① 거래사례비교법</button>
+        <button id="incomeTab" type="button" onclick="showMethodTab('incomeTab')" class="px-4 py-3 border border-slate-300 bg-slate-100 text-slate-500 rounded-t-xl">② 수익환원법</button>
+        <button id="costTab" type="button" onclick="showMethodTab('costTab')" class="px-4 py-3 border border-slate-300 bg-slate-100 text-slate-500 rounded-t-xl">③ 원가법</button>
+      </div>
+
+      <div class="border border-t-0 border-slate-300 bg-white p-5 rounded-b-xl">
+        <div id="salesContent">${salesHtml}</div>
+        <div id="incomeContent" style="display:none;">${incomeHtml}</div>
+        <div id="costContent" style="display:none;">${costHtml}</div>
+      </div>
+    </div>
+  `;
+}
+  
 function methodCard(name, value, role, detailId, detailHtml) {
   const main = role.includes('70');
 
