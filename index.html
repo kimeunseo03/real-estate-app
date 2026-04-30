@@ -88,7 +88,8 @@
 
 <script>
 let registryText = '';
-
+let lastParsedResult = null; //
+  
 function formatMoney(n) {
   if (n === null || n === undefined || n === '') return '확인 필요';
   if (typeof n === 'string') return n;
@@ -187,8 +188,9 @@ function toggleTenant() {
 async function handleFile(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-
-  registryText = '';
+  
+ registryText = '';
+  lastParsedResult = null;
   document.getElementById('result').innerHTML = card('파일 업로드 완료', '<p class="text-slate-600">문서 인식 및 자동 분석을 진행해주세요.</p>');
 
   const fileName = file.name || '';
@@ -196,7 +198,7 @@ async function handleFile(event) {
 
   document.getElementById('fileStatus').innerHTML =
     `업로드 완료: ${fileName}<br><span class="text-slate-500">문서 텍스트를 읽는 중입니다...</span>`;
-
+  
   try {
     if (lowerName.endsWith('.txt')) {
       registryText = await readTextFile(file);
@@ -212,11 +214,13 @@ async function handleFile(event) {
       document.getElementById('fileStatus').innerHTML =
         `업로드 완료: ${fileName}<br><span class="text-emerald-700 font-bold">문서 텍스트를 읽었습니다.</span>`;
     } else {
+      registryText = ''; // ✅ 텍스트 부족하면 명시적으로 비움
       document.getElementById('fileStatus').innerHTML =
         `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">텍스트가 부족합니다. 스캔본 또는 이미지 품질을 확인해주세요.</span>`;
     }
   } catch (error) {
     registryText = '';
+    lastParsedResult = null;
     document.getElementById('fileStatus').innerHTML =
       `<span class="font-bold text-amber-700">파일을 읽지 못했습니다: ${error.message || error}</span>`;
   }
@@ -361,42 +365,66 @@ const mortgageSource =
 
 let mortgageList = [];
 
-if (mortgageSource.includes('근저당권설정')) {
-  const blocks = mortgageSource
-    .split(/\n(?=\s*\d+\s+)/)
-    .filter(block => block.includes('근저당권설정'));
+// ✅ 을구 자체가 없으면 근저당 없음으로 처리
+if (eulguStart < 0) {
+  // 을구 섹션 없음 → mortgageList 빈 배열 유지
+} else if (mortgageSource.includes('근저당권설정')) {
 
-  mortgageList = blocks.map((block, index) => {
-    const amountText = getMatch(
-      block,
-      /채권최고액\s*금\s*([\d,]+)\s*원/,
-      ''
-    );
+  // ✅ 순위번호 기준으로 블록 분리 (개선된 정규식)
+  const blocks = mortgageSource.split(/\n(?=\s*\d+\s+근저당권)/).filter(Boolean);
 
-    const lenderText = getMatch(
-      block,
-      /근저당권자\s+([^\n\r]+)/,
-      ''
-    );
+  mortgageList = blocks
+    .filter(block => block.includes('근저당권설정'))
+    .map((block, index) => {
 
-    if (!amountText || !lenderText) return null;
+      // ✅ 말소/해지/취하된 항목 제외 — 핵심 필터
+      const isCancelled =
+        /말소|해지|취하|근저당권설정등기말소|압류해제/.test(block);
+      if (isCancelled) return null;
 
-    let lender = lenderText
-      .replace(/채무자.*$/g, '')
-      .replace(/주소.*$/g, '')
-      .replace(/공동담보.*$/g, '')
-      .replace(/목록.*$/g, '')
-      .replace(/\d{6,}.*/g, '')
-      .trim();
+      // ✅ "변경 전" 블록 제외 (이전 내용 혼입 방지)
+      if (block.includes('변경 전')) return null;
 
-    if (!lender) return null;
+      const amountText = getMatch(
+        block,
+        /채권최고액\s*금\s*([\d,]+)\s*원/,
+        ''
+      );
 
-    return {
-      rank: index + 1,
-      lender,
-      amount: Number(String(amountText).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
-    };
-  }).filter(item => item && item.amount > 0 && item.lender);
+      const lenderText = getMatch(
+        block,
+        /근저당권자\s+([^\n\r]+)/,
+        ''
+      );
+
+      // ✅ 금액 또는 채권자 없으면 스킵
+      if (!amountText || !lenderText) return null;
+
+      let lender = lenderText
+        .replace(/채무자.*$/g, '')
+        .replace(/주소.*$/g, '')
+        .replace(/공동담보.*$/g, '')
+        .replace(/목록.*$/g, '')
+        .replace(/\d{6,}.*/g, '')
+        .trim();
+
+      if (!lender) return null;
+
+      const amount = Number(String(amountText).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0;
+      if (amount <= 0) return null;
+
+      return { rank: index + 1, lender, amount };
+    })
+    .filter(Boolean); // null 제거
+}
+
+// ✅ 주요 등기사항 요약에 "기록사항 없음"이 명시된 경우 강제 초기화
+const summarySection = raw.slice(raw.indexOf('주요 등기사항 요약'));
+if (
+  summarySection.includes('기록사항 없음') &&
+  (summarySection.includes('근저당') || summarySection.includes('저당권'))
+) {
+  mortgageList = [];
 }
 
 const seniorMortgageAmount = mortgageList.reduce((sum, item) => sum + item.amount, 0);
@@ -404,7 +432,7 @@ const seniorMortgageAmount = mortgageList.reduce((sum, item) => sum + item.amoun
 const mortgageStatus =
   mortgageList.length > 0
     ? '유효 근저당 있음'
-    : '등기부상 유효 근저당 확인 안 됨';
+    : '유효 근저당 없음 (또는 확인 불가)';
   
   const apartmentNameCandidates = [
     getMatch(raw, /건물명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
@@ -578,6 +606,7 @@ async function calculate() {
     return;
   }
 
+  lastParsedResult = null;
   const parsed = parseRegistry(registryText);
 
   document.getElementById('result').innerHTML =
