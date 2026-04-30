@@ -38,16 +38,14 @@
           <div class="rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 text-center">
             <div class="text-3xl mb-2">📄</div>
             <p class="font-bold">PDF 업로드</p>
-            <label for="registryFile" class="inline-block mt-4 cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
-  파일 선택
-  </label>
+            <label for="registryFile" class="inline-block mt-4 cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">파일 선택</label>
 
   <input
-    id="registryFile"
-    type="file"
-    accept="application/pdf,image/*,.txt"
-    class="hidden"
-    onchange="e(event)"
+  id="registryFile"
+  type="file"
+  accept="application/pdf,image/*,.txt"
+  style="display:block"
+  onchange="handleFile(event)"
   />
           </div>
 
