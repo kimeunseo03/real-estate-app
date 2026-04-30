@@ -276,9 +276,7 @@ function parseRegistry(text) {
   const ownerEnd2 = raw.indexOf('3. (근)', ownerStart);
   const ownerEnd3 = raw.indexOf('참 고 사 항', ownerStart);
 
-  const ownerEnds = [ownerEnd1, ownerEnd2, ownerEnd3].filter(function (index) {
-    return index > ownerStart;
-  });
+  const ownerEnds = [ownerEnd1, ownerEnd2, ownerEnd3].filter(index => index > ownerStart);
 
   const ownerEnd = ownerEnds.length
     ? Math.min.apply(null, ownerEnds)
@@ -304,53 +302,74 @@ function parseRegistry(text) {
   const unitNumber = unitRaw.replace(/\s+/g, ' ');
   const currentFloor = Number(getMatch(unitNumber, /제\s*(\d+)층/, '0'));
 
-  let exclusiveSection = getMatch(raw, /전유부분의 건물의 표시[\s\S]*?(?:건 물 내 역|건물내역)([\s\S]*?)(?:\( 대지권의 표시 \)|대지권의 표시|【 갑 구 】|【 을 구 】|$)/, '');
-  if (!exclusiveSection) exclusiveSection = getMatch(raw, /전유부분의 건물의 표시[\s\S]*?(제\s*\d+층\s*제\s*\d+호[\s\S]*?㎡)/, '');
+  let exclusiveSection = getMatch(
+    raw,
+    /전유부분의 건물의 표시[\s\S]*?(?:건 물 내 역|건물내역)([\s\S]*?)(?:\( 대지권의 표시 \)|대지권의 표시|【 갑 구 】|【 을 구 】|$)/,
+    ''
+  );
+
+  if (!exclusiveSection) {
+    exclusiveSection = getMatch(
+      raw,
+      /전유부분의 건물의 표시[\s\S]*?(제\s*\d+층\s*제\s*\d+호[\s\S]*?㎡)/,
+      ''
+    );
+  }
+
   const areaValue = getMatch(exclusiveSection, /(\d+(?:\.\d+)?)\s*㎡/, '');
 
-  const structureFloor = Number(getMatch(raw, /지붕\s*(\d+)층/, '0')) || Number(getMatch(raw, /구조[\s\S]{0,40}?(\d+)층/, '0'));
-  const floorNumbers = Array.from(raw.matchAll(/(?:^|\n|\s)(\d+)층\s+\d+(?:\.\d+)?㎡/g)).map(m => Number(m[1]));
+  const structureFloor =
+    Number(getMatch(raw, /지붕\s*(\d+)층/, '0')) ||
+    Number(getMatch(raw, /구조[\s\S]{0,40}?(\d+)층/, '0'));
+
+  const floorNumbers = Array.from(
+    raw.matchAll(/(?:^|\n|\s)(\d+)층\s+\d+(?:\.\d+)?㎡/g)
+  ).map(m => Number(m[1]));
+
   const totalFloors = structureFloor || (floorNumbers.length ? Math.max(...floorNumbers) : 0);
 
   const hasTenantRight = /전세권설정|임차권등기|주택임차권|임차권설정/.test(raw);
-  const hasNoMortgageSummary = compact.includes('기록사항없음') && (compact.includes('저당권및전세권') || compact.includes('근)저당권및전세권'));
+  const hasNoMortgageSummary =
+    compact.includes('기록사항없음') &&
+    (compact.includes('저당권및전세권') || compact.includes('근)저당권및전세권'));
+
   const hasMortgageSetting = /근저당권설정/.test(raw);
-  const hasMortgageCancel = /근저당권설정[\s\S]*?(근저당권설정등기말소|근저당권설정등|해지)/.test(raw);
+  const hasMortgageCancel = /근저당권설정[\s\S]*?(근저당권설정등기말소|해지|말소)/.test(raw);
 
   let seniorMortgageAmount = 0;
   let mortgageList = [];
 
-  const mortgageStatus =
-    hasNoMortgageSummary || (hasMortgageSetting && hasMortgageCancel)
-      ? '현재 유효한 근저당 없음'
-      : hasMortgageSetting
-        ? '근저당 확인 필요'
-        : '현재 유효한 근저당 없음';
-    let mortgageList = [];
   const summaryMortgageBlock = getMatch(
     raw,
     /3\.\s*\(근\)\s*저당권[\s\S]*?(?=\[\s*참\s*고\s*사\s*항\s*\]|$)/,
     ''
-);
+  );
 
   const mortgageSource = summaryMortgageBlock || raw;
 
   const mortgageMatches = Array.from(
-    mortgageSource.matchAll(/(\d+)\s+근저당권설정[\s\S]*?채권최고액\s*금\s*([\d,]+)\s*원[\s\S]*?근저당권자\s+([^\n]+)/g)
-);
+    mortgageSource.matchAll(
+      /(\d+)\s+근저당권설정[\s\S]*?채권최고액\s*금\s*([\d,]+)\s*원[\s\S]*?근저당권자\s+([^\n]+)/g
+    )
+  );
 
   mortgageList = mortgageMatches.map((m, index) => ({
     rank: index + 1,
     originalRank: m[1],
     lender: String(m[3] || '').trim(),
     amount: Number(String(m[2]).replace(/,/g, '')) || 0
-}));
+  }));
 
   seniorMortgageAmount = mortgageList.reduce((sum, item) => sum + item.amount, 0);
-    ? '현재 유효한 근저당 없음'
-    : hasMortgageSetting
-      ? '근저당 확인 필요'
-      : '현재 유효한 근저당 없음';
+
+  const mortgageStatus =
+    seniorMortgageAmount > 0
+      ? '유효 근저당 있음'
+      : hasNoMortgageSummary || (hasMortgageSetting && hasMortgageCancel)
+        ? '현재 유효한 근저당 없음'
+        : hasMortgageSetting
+          ? '근저당 확인 필요'
+          : '현재 유효한 근저당 없음';
 
   return {
     documentValidation: validation,
@@ -363,9 +382,9 @@ function parseRegistry(text) {
     totalFloors,
     medianFloor: totalFloors ? totalFloors / 2 : 0,
     registryTenantStatus: hasTenantRight ? '등기부상 임차권리 있음' : '등기부상 확인 불가',
-  mortgageStatus: seniorMortgageAmount > 0 ? '유효 근저당 있음' : mortgageStatus,
-  seniorMortgageAmount,
-  mortgageList
+    mortgageStatus,
+    seniorMortgageAmount,
+    mortgageList
   };
 }
 
