@@ -687,24 +687,19 @@ async function calculate() {
 
   const collateralLtvRate = 0.7;
 
-  const collateralBase = Number.isFinite(weightedAppraisalValue)
-    ? Math.round(weightedAppraisalValue * collateralLtvRate)
-    : null;
-
   const priorityRepayment = tenant === '없음'
     ? 0
     : calculatePriorityRepayment(address, parsed.detailType, deposit);
 
-  const finalValue = Number.isFinite(collateralBase)
-    ? collateralBase - deposit - priorityRepayment - parsed.seniorMortgageAmount
-    : null;
+  const finalValue = Number.isFinite(weightedAppraisalValue)
+    ? weightedAppraisalValue - deposit - priorityRepayment - parsed.seniorMortgageAmount
+    : null;;
 
   document.getElementById('result').innerHTML = `
     <div id="pdfArea" class="space-y-4">
       <div class="grid gap-4 md:grid-cols-3">
-        ${summaryCard('1단계 시산가액', formatMoney(weightedAppraisalValue), '3방식 가중평균')}
-        ${summaryCard('2단계 담보 인정가', formatMoney(collateralBase), '시산가액 × LTV 70%')}
-        ${summaryCard('3단계 최종 담보가치', formatMoney(finalValue), '보증금·최우선변제금·선순위 차감 후', 'dark')}
+        ${summaryCard('감정평가 시산가액', formatMoney(weightedAppraisalValue), '3방식 가중평균')}
+        ${summaryCard('최종 담보가치', formatMoney(finalValue), '보증금·최우선변제금·선순위 차감 후', 'dark')}
       </div>
 
       ${card('문서 판별 상태', `
@@ -781,7 +776,7 @@ ${card('감정평가 3방식 비교', `
   )}
 `)}
 
-      ${card('1단계 감정평가 3방식 종합 및 시산가액 조정', `
+      ${card('감정평가 3방식 종합 및 시산가액 조정', `
         ${appraisalTable({
           salesComparisonValue,
           incomeApproach,
@@ -790,12 +785,8 @@ ${card('감정평가 3방식 비교', `
         })}
       `)}
 
-      ${card('2단계 담보 인정가 산정', `
-        <p>담보 인정가 = 1단계 시산가액 × LTV 70%</p>
-        <p><b>${formatMoney(weightedAppraisalValue)} × 70% = ${formatMoney(collateralBase)}</b></p>
-      `)}
 
-      ${card('3단계 권리 차감 후 최종 담보가치', `
+      ${card('권리 차감 후 최종 담보가치', `
         <p>담보 인정가 = <b>${formatMoney(collateralBase)}</b></p>
         <p>적용 임차보증금 = <b>${formatMoney(deposit)}</b></p>
         <p>최우선변제금 = <b>${formatMoney(priorityRepayment)}</b></p>
