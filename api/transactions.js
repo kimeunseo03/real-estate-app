@@ -18,8 +18,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const lawdCode = getLawdCode(address);
-
+    const lawdCode = await getLawdCode(address);
     if (!lawdCode) {
       return res.status(200).json({
         investigationPrice: null,
@@ -194,22 +193,56 @@ function normalizeAptName(name = '') {
     .trim();
 }
 
-function getLawdCode(address = '') {
-  const text = String(address || '');
+async function getLawdCode(address = '') {
+  const serviceKey = process.env.PUBLIC_DATA_API_KEY;
+  const text = String(address || '').replace(/\s+/g, ' ').trim();
 
-  if (text.includes('광주광역시 동구') || text.includes('광주 동구')) return '29110';
-  if (text.includes('광주광역시 서구') || text.includes('광주 서구')) return '29140';
-  if (text.includes('광주광역시 남구') || text.includes('광주 남구')) return '29155';
-  if (text.includes('광주광역시 북구') || text.includes('광주 북구')) return '29170';
-  if (text.includes('광주광역시 광산구') || text.includes('광주 광산구')) return '29200';
+  const parts = text.split(' ');
+  const sido = parts[0] || '';
+  const sigungu = parts[1] || '';
 
-  if (text.includes('나주시')) return '46170';
+  if (!sido || !sigungu) return null;
 
-  if (text.includes('서울특별시 동대문구') || text.includes('동대문구')) return '11230';
-  if (text.includes('서울특별시 강남구') || text.includes('강남구')) return '11680';
-  if (text.includes('서울특별시 송파구') || text.includes('송파구')) return '11710';
-  if (text.includes('서울특별시 강동구') || text.includes('강동구')) return '11740';
-  if (text.includes('서울특별시 서초구') || text.includes('서초구')) return '11650';
+  const keyword = `${sido} ${sigungu}`;
 
-  return null;
+  const url =
+    'https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList' +
+    `?serviceKey=${encodeURIComponent(serviceKey)}` +
+    '&type=json' +
+    '&pageNo=1' +
+    '&numOfRows=1000' +
+    `&locatadd_nm=${encodeURIComponent(keyword)}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  const items =
+    data?.StanReginCd?.[1]?.row ||
+    data?.StanReginCd?.[1]?.row ||
+    data?.response?.body?.items?.item ||
+    [];
+
+  const rows = Array.isArray(items) ? items : [items];
+
+  const matched = rows.find(row => {
+    const name = row.locatadd_nm || row.locallow_nm || '';
+    const code = String(row.region_cd || row.regionCd || '');
+    return (
+      name.includes(keyword) &&
+      code.length >= 5 &&
+      code.endsWith('00000')
+    );
+  });
+
+  if (matched) {
+    return String(matched.region_cd || matched.regionCd).slice(0, 5);
+  }
+
+  const fallback = rows.find(row => {
+    const name = row.locatadd_nm || row.locallow_nm || '';
+    const code = String(row.region_cd || row.regionCd || '');
+    return name.includes(sigungu) && code.length >= 5;
+  });
+
+  return fallback ? String(fallback.region_cd || fallback.regionCd).slice(0, 5) : null;
 }
