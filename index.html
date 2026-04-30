@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>부동산 가치평가 시스템</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -15,8 +16,9 @@
     <header class="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-sm border border-slate-200">
       <div>
         <h1 class="text-2xl font-extrabold">부동산 가치평가 시스템</h1>
-        <p class="text-sm text-slate-500 mt-1">VWorld 주소 변환 + 실거래가 기반 담보가치 산정</p>
+        <p class="text-sm text-slate-500 mt-1">등기부등본 자동 분석 + 실거래가 기반 담보가치 산정</p>
       </div>
+
       <button onclick="savePDF()" class="rounded-xl bg-red-50 text-red-700 border border-red-200 px-4 py-2 text-sm font-bold">
         PDF 저장
       </button>
@@ -26,41 +28,58 @@
       <section class="space-y-4">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <h2 class="font-bold mb-3">1. 주소 입력</h2>
-          <input id="address" class="w-full border border-slate-200 p-3 rounded-xl" placeholder="예: 광주광역시 북구 첨단연신로 300, 101동 1503호" />
-          <p class="text-xs text-slate-500 mt-2">주소는 VWorld Geocoder로 좌표와 법정동코드를 확인합니다.</p>
+          <input id="address" class="w-full border border-slate-200 p-3 rounded-xl" placeholder="주소를 입력해주세요" />
+          <p class="text-xs text-slate-500 mt-2">예: 광주광역시 북구 첨단연신로 300</p>
         </div>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <h2 class="font-bold mb-3">2. 등기부등본 업로드</h2>
+
           <div class="rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 text-center">
+            <div class="text-3xl mb-2">📄</div>
             <p class="font-bold">PDF / JPG / PNG / TXT 업로드</p>
-            <button type="button" onclick="document.getElementById('registryFile').click()" class="mt-4 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">파일 선택</button>
+            <button type="button" onclick="document.getElementById('registryFile').click()" class="mt-4 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
+              파일 선택
+            </button>
             <input id="registryFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.txt" style="display:none" onchange="handleFile(event)" />
           </div>
+
           <div id="fileStatus" class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">업로드된 파일 없음</div>
-          <button onclick="analyzeDocument()" class="mt-3 w-full rounded-xl bg-slate-900 text-white py-3 font-bold">문서 인식 및 자동 분석</button>
+
+          <button onclick="analyzeDocument()" class="mt-3 w-full rounded-xl bg-slate-900 text-white py-3 font-bold">
+            문서 인식 및 자동 분석
+          </button>
         </div>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <h2 class="font-bold mb-3">3. 임차인 현황 입력</h2>
+
           <select id="tenant" class="w-full border border-slate-200 p-3 rounded-xl mb-3" onchange="toggleTenant()">
             <option>없음</option>
             <option>있음</option>
           </select>
 
           <div id="depositBox" class="space-y-3" style="display:none;">
-            <input id="jeonseDeposit" placeholder="전세보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'jeonseText')" />
-            <p id="jeonseText" class="text-xs text-slate-500"></p>
+            <div>
+              <input id="jeonseDeposit" placeholder="전세보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'jeonseText')" />
+              <p id="jeonseText" class="text-xs text-slate-500 mt-1"></p>
+            </div>
 
-            <input id="leaseDeposit" placeholder="임차보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'leaseText')" />
-            <p id="leaseText" class="text-xs text-slate-500"></p>
+            <div>
+              <input id="leaseDeposit" placeholder="임차보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'leaseText')" />
+              <p id="leaseText" class="text-xs text-slate-500 mt-1"></p>
+            </div>
 
-            <input id="monthlyDeposit" placeholder="월세보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'monthlyText')" />
-            <p id="monthlyText" class="text-xs text-slate-500"></p>
+            <div>
+              <input id="monthlyDeposit" placeholder="월세보증금" class="w-full border border-slate-200 p-3 rounded-xl" oninput="formatInput(this, 'monthlyText')" />
+              <p id="monthlyText" class="text-xs text-slate-500 mt-1"></p>
+            </div>
           </div>
         </div>
 
-        <button onclick="calculate()" class="w-full bg-blue-700 hover:bg-blue-800 text-white px-4 py-4 rounded-2xl font-extrabold shadow-sm">결과 계산하기</button>
+        <button onclick="calculate()" class="w-full bg-blue-700 hover:bg-blue-800 text-white px-4 py-4 rounded-2xl font-extrabold shadow-sm">
+          결과 계산하기
+        </button>
       </section>
 
       <section id="result" class="space-y-4"></section>
@@ -74,11 +93,13 @@ function formatMoney(n) {
   if (n === null || n === undefined || n === '') return '확인 필요';
   if (typeof n === 'string') return n;
   if (!Number.isFinite(n)) return '확인 필요';
+
   if (n >= 100000000) {
     const eok = Math.floor(n / 100000000);
     const man = Math.floor((n % 100000000) / 10000);
     return man ? `${eok}억 ${man.toLocaleString()}만원` : `${eok}억원`;
   }
+
   return `${Math.max(0, n).toLocaleString()}원`;
 }
 
@@ -87,8 +108,10 @@ function parseMoney(v) {
 }
 
 function formatKoreanMoney(num) {
+  if (!num) return '';
   const eok = Math.floor(num / 100000000);
   const man = Math.floor((num % 100000000) / 10000);
+
   if (eok > 0 && man > 0) return `${eok}억 ${man.toLocaleString()}만원`;
   if (eok > 0) return `${eok}억원`;
   if (man > 0) return `${man.toLocaleString()}만원`;
@@ -97,11 +120,13 @@ function formatKoreanMoney(num) {
 
 function formatInput(input, textId) {
   const raw = input.value.replace(/[^0-9]/g, '');
+
   if (!raw) {
     input.value = '';
     document.getElementById(textId).innerText = '';
     return;
   }
+
   const num = Number(raw);
   input.value = num.toLocaleString();
   document.getElementById(textId).innerText = `(${formatKoreanMoney(num)})`;
@@ -122,7 +147,11 @@ function cleanText(t) {
 }
 
 function normalizeSpaces(t) {
-  return String(t || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').trim();
+  return String(t || '')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .trim();
 }
 
 function getMatch(text, regex, fallback = '') {
@@ -139,11 +168,19 @@ function getLastMatch(text, regex, fallback = '') {
 
 function toggleTenant() {
   const tenant = document.getElementById('tenant').value;
-  document.getElementById('depositBox').style.display = tenant === '없음' ? 'none' : 'block';
+  const depositBox = document.getElementById('depositBox');
+  depositBox.style.display = tenant === '없음' ? 'none' : 'block';
 
   if (tenant === '없음') {
-    ['jeonseDeposit', 'leaseDeposit', 'monthlyDeposit'].forEach(id => document.getElementById(id).value = '');
-    ['jeonseText', 'leaseText', 'monthlyText'].forEach(id => document.getElementById(id).innerText = '');
+    ['jeonseDeposit', 'leaseDeposit', 'monthlyDeposit'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    ['jeonseText', 'leaseText', 'monthlyText'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = '';
+    });
   }
 }
 
@@ -156,7 +193,9 @@ async function handleFile(event) {
 
   const fileName = file.name || '';
   const lowerName = fileName.toLowerCase();
-  document.getElementById('fileStatus').innerHTML = `업로드 완료: ${fileName}<br><span class="text-slate-500">문서 텍스트를 읽는 중입니다...</span>`;
+
+  document.getElementById('fileStatus').innerHTML =
+    `업로드 완료: ${fileName}<br><span class="text-slate-500">문서 텍스트를 읽는 중입니다...</span>`;
 
   try {
     if (lowerName.endsWith('.txt')) {
@@ -169,11 +208,17 @@ async function handleFile(event) {
       throw new Error('지원하지 않는 파일 형식입니다.');
     }
 
-    document.getElementById('fileStatus').innerHTML =
-      `업로드 완료: ${fileName}<br><span class="text-emerald-700 font-bold">텍스트를 읽었습니다.</span>`;
+    if (registryText && registryText.trim().length > 30) {
+      document.getElementById('fileStatus').innerHTML =
+        `업로드 완료: ${fileName}<br><span class="text-emerald-700 font-bold">문서 텍스트를 읽었습니다.</span>`;
+    } else {
+      document.getElementById('fileStatus').innerHTML =
+        `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">텍스트가 부족합니다. 스캔본 또는 이미지 품질을 확인해주세요.</span>`;
+    }
   } catch (error) {
     registryText = '';
-    document.getElementById('fileStatus').innerHTML = `<span class="font-bold text-amber-700">파일을 읽지 못했습니다: ${error.message || error}</span>`;
+    document.getElementById('fileStatus').innerHTML =
+      `<span class="font-bold text-amber-700">파일을 읽지 못했습니다: ${error.message || error}</span>`;
   }
 }
 
@@ -197,7 +242,8 @@ async function extractTextFromPDF(file) {
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    pages.push(content.items.map(item => item.str || '').join(' '));
+    const pageText = content.items.map(item => item.str || '').join(' ');
+    pages.push(pageText);
   }
 
   return pages.join('\n');
@@ -205,15 +251,30 @@ async function extractTextFromPDF(file) {
 
 async function extractTextFromImage(file) {
   if (!window.Tesseract) throw new Error('Tesseract OCR 라이브러리를 불러오지 못했습니다.');
+  document.getElementById('fileStatus').innerHTML += `<br><span class="text-slate-500">OCR 처리 중입니다...</span>`;
   const result = await window.Tesseract.recognize(file, 'kor+eng');
   return result && result.data ? result.data.text || '' : '';
 }
 
 function validateRegistryDocument(text) {
-  if (!text || text.trim().length < 20) return { status: 'OCR 실패', tone: 'yellow', found: [] };
+  if (!text || text.trim().length < 20) {
+    return { status: 'OCR 실패', tone: 'yellow', found: [] };
+  }
 
   const compact = cleanText(text);
-  const keywords = ['등기사항전부증명서','등기사항일부증명서','집합건물','표제부','갑구','을구','고유번호','전유부분의건물의표시','대지권의표시','주요등기사항요약'];
+  const keywords = [
+    '등기사항전부증명서',
+    '등기사항일부증명서',
+    '집합건물',
+    '표제부',
+    '갑구',
+    '을구',
+    '고유번호',
+    '전유부분의건물의표시',
+    '대지권의표시',
+    '주요등기사항요약'
+  ];
+
   const found = keywords.filter(k => compact.includes(k));
 
   if (found.length >= 5) return { status: '등기부등본 확실', tone: 'green', found };
@@ -232,19 +293,25 @@ function parseRegistry(text) {
   const ownerEnd1 = raw.indexOf('2. 소유지분을 제외한', ownerStart);
   const ownerEnd2 = raw.indexOf('3. (근)', ownerStart);
   const ownerEnd3 = raw.indexOf('참 고 사 항', ownerStart);
+
   const ownerEnds = [ownerEnd1, ownerEnd2, ownerEnd3].filter(index => index > ownerStart);
   const ownerEnd = ownerEnds.length ? Math.min.apply(null, ownerEnds) : ownerStart + 500;
   const ownerBlock = ownerStart >= 0 ? raw.slice(ownerStart, ownerEnd) : '';
+
   const ownerInSummary = ownerBlock.match(/([가-힣]{2,5})\s*\(\s*소유자\s*\)/);
 
-  if (ownerInSummary && ownerInSummary[1]) owner = ownerInSummary[1].trim();
+  if (ownerInSummary && ownerInSummary[1]) {
+    owner = ownerInSummary[1].trim();
+  }
 
   if (owner === '확인 필요') {
     const ownerInGap = getLastMatch(raw, /소유자\s+([가-힣]{2,5})/g, '');
     if (ownerInGap) owner = ownerInGap;
   }
 
-  if (['혹은', '공유자', '현황', '확인', '지분', '변경', '말소'].includes(owner)) owner = '확인 필요';
+  if (['혹은', '공유자', '현황', '확인', '지분', '변경', '말소'].includes(owner)) {
+    owner = '확인 필요';
+  }
 
   const unitRaw = getMatch(raw, /(제\s*\d+층\s*제\s*\d+호)/, '확인 필요');
   const unitNumber = unitRaw.replace(/\s+/g, ' ');
@@ -257,7 +324,11 @@ function parseRegistry(text) {
   );
 
   if (!exclusiveSection) {
-    exclusiveSection = getMatch(raw, /전유부분의 건물의 표시[\s\S]*?(제\s*\d+층\s*제\s*\d+호[\s\S]*?㎡)/, '');
+    exclusiveSection = getMatch(
+      raw,
+      /전유부분의 건물의 표시[\s\S]*?(제\s*\d+층\s*제\s*\d+호[\s\S]*?㎡)/,
+      ''
+    );
   }
 
   const areaValue = getMatch(exclusiveSection, /(\d+(?:\.\d+)?)\s*㎡/, '');
@@ -266,7 +337,10 @@ function parseRegistry(text) {
     Number(getMatch(raw, /지붕\s*(\d+)층/, '0')) ||
     Number(getMatch(raw, /구조[\s\S]{0,40}?(\d+)층/, '0'));
 
-  const floorNumbers = Array.from(raw.matchAll(/(?:^|\n|\s)(\d+)층\s+\d+(?:\.\d+)?㎡/g)).map(m => Number(m[1]));
+  const floorNumbers = Array.from(
+    raw.matchAll(/(?:^|\n|\s)(\d+)층\s+\d+(?:\.\d+)?㎡/g)
+  ).map(m => Number(m[1]));
+
   const totalFloors = structureFloor || (floorNumbers.length ? Math.max(...floorNumbers) : 0);
 
   const hasTenantRight = /전세권설정|임차권등기|주택임차권|임차권설정/.test(raw);
@@ -277,25 +351,40 @@ function parseRegistry(text) {
   const hasMortgageSetting = /근저당권설정/.test(raw);
   const hasMortgageCancel = /근저당권설정[\s\S]*?(근저당권설정등기말소|해지|말소)/.test(raw);
 
-  const summaryMortgageBlock = getMatch(
-    raw,
-    /3\.\s*\(근\)\s*저당권[\s\S]*?(?=\[\s*참\s*고\s*사\s*항\s*\]|$)/,
-    ''
-  );
+  const mortgageSource = raw;
+  const mortgageBlocks = Array.from(
+    mortgageSource.matchAll(/(\d+)\s+근저당권설정[\s\S]*?(?=\n\s*\d+\s+근저당권설정|\n\s*\d+\s+[가-힣]+권|【 갑 구 】|【 을 구 】|$)/g)
+  ).map(m => m[0]);
 
-  const mortgageSource = summaryMortgageBlock || raw;
+  let mortgageList = mortgageBlocks.map((block, index) => {
+    const amountText = getMatch(block, /채권최고액\s*금\s*([\d,]+)\s*원/, '') ||
+                       getMatch(block, /채권액\s*금\s*([\d,]+)\s*원/, '');
 
-  const mortgageMatches = Array.from(
-  mortgageSource.matchAll(
-    /근저당권설정[\s\S]*?채권최고액\s*금?\s*([\d,]+)\s*원[\s\S]*?근저당권자\s*([^\n\r]+)/g
-  )
-);
+    let lender = getMatch(block, /근저당권자\s+([^\n\r]+)/, '');
+    lender = lender
+      .replace(/채무자[\s\S]*/g, '')
+      .replace(/주소[\s\S]*/g, '')
+      .replace(/공동담보[\s\S]*/g, '')
+      .trim();
 
-  const mortgageList = mortgageMatches.map((m, index) => ({
-    rank: index + 1,
-    lender: String(m[2] || '').trim(),
-    amount: Number(String(m[2]).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
-}));
+    return {
+      rank: index + 1,
+      lender: lender || '확인 필요',
+      amount: Number(String(amountText).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
+    };
+  }).filter(item => item.amount > 0);
+
+  if (!mortgageList.length) {
+    const fallbackMatches = Array.from(
+      raw.matchAll(/채권최고액\s*금\s*([\d,]+)\s*원[\s\S]{0,250}?근저당권자\s+([^\n\r]+)/g)
+    );
+
+    mortgageList = fallbackMatches.map((m, index) => ({
+      rank: index + 1,
+      lender: String(m[2] || '').replace(/채무자[\s\S]*/g, '').trim() || '확인 필요',
+      amount: Number(String(m[1]).replace(/,/g, '').replace(/[^0-9]/g, '')) || 0
+    })).filter(item => item.amount > 0);
+  }
 
   const seniorMortgageAmount = mortgageList.reduce((sum, item) => sum + item.amount, 0);
 
@@ -308,32 +397,32 @@ function parseRegistry(text) {
           ? '근저당 확인 필요'
           : '현재 유효한 근저당 없음';
 
-const apartmentNameCandidates = [
-  getMatch(raw, /건물명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
-  getMatch(raw, /건물명\s*[:：]?\s*([^\n\r]{2,40})/, ''),
-  getMatch(raw, /명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
-  getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}아파트)/, ''),
-  getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}APT)/i, '')
-];
+  const apartmentNameCandidates = [
+    getMatch(raw, /건물명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+    getMatch(raw, /건물명\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+    getMatch(raw, /명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+    getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}아파트)/, ''),
+    getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}APT)/i, '')
+  ];
 
-let apartmentName = apartmentNameCandidates
-  .map(v => String(v || '').trim())
-  .find(v =>
-    v &&
-    v.length <= 40 &&
-    !v.includes('소유권') &&
-    !v.includes('근저당') &&
-    !v.includes('채권최고액') &&
-    !v.includes('등기') &&
-    !v.includes('사항') &&
-    !v.includes('접수')
-  ) || '확인 필요';
+  let apartmentName = apartmentNameCandidates
+    .map(v => String(v || '').trim())
+    .find(v =>
+      v &&
+      v.length <= 40 &&
+      !v.includes('소유권') &&
+      !v.includes('근저당') &&
+      !v.includes('채권최고액') &&
+      !v.includes('등기') &&
+      !v.includes('사항') &&
+      !v.includes('접수')
+    ) || '확인 필요';
 
-apartmentName = apartmentName
-  .replace(/제\s*\d+동.*/, '')
-  .replace(/제\s*\d+층.*/, '')
-  .replace(/제\s*\d+호.*/, '')
-  .trim();
+  apartmentName = apartmentName
+    .replace(/제\s*\d+동.*/, '')
+    .replace(/제\s*\d+층.*/, '')
+    .replace(/제\s*\d+호.*/, '')
+    .trim();
 
   return {
     documentValidation: validation,
@@ -356,13 +445,16 @@ apartmentName = apartmentName
 
 function analyzeDocument() {
   if (!registryText) {
-    document.getElementById('fileStatus').innerHTML = `<span class="font-bold text-amber-700">등기부등본 파일을 먼저 업로드해주세요.</span>`;
+    document.getElementById('fileStatus').innerHTML =
+      `<span class="font-bold text-amber-700">등기부등본 파일을 먼저 업로드해주세요.</span>`;
     return;
   }
 
   const validation = validateRegistryDocument(registryText);
   const color = validation.tone === 'green' ? 'emerald' : 'amber';
-  document.getElementById('fileStatus').innerHTML = `<span class="font-bold text-${color}-700">${validation.status}</span> · 감지 키워드 ${validation.found.length}개`;
+
+  document.getElementById('fileStatus').innerHTML =
+    `<span class="font-bold text-${color}-700">${validation.status}</span> · 감지 키워드 ${validation.found.length}개`;
 }
 
 async function fetchOfficialPriceFromApi(address, parsed) {
@@ -388,11 +480,13 @@ async function getMarketAnalysis(address, parsed) {
     const data = await fetchOfficialPriceFromApi(address, parsed);
     const investigationPrice = Number(data.investigationPrice || 0);
 
-    if (!investigationPrice) throw new Error(data.message || '실거래가 데이터 없음');
+    if (!investigationPrice) {
+      throw new Error(data.message || '실거래가 데이터 없음');
+    }
 
     return {
-      geo: data.geo,
       marketPriceSource: data.source || '공공데이터포털 실거래가 API',
+      lawdCode: data.lawdCode || '',
       transactionCount: data.transactionCount || 0,
       usedTransactionCount: data.usedTransactionCount || 0,
       totalRawCount: data.totalRawCount || 0,
@@ -406,8 +500,8 @@ async function getMarketAnalysis(address, parsed) {
     };
   } catch (error) {
     return {
-      geo: null,
-      marketPriceSource: error.message || '실거래가 API 연결 필요',
+      marketPriceSource: '공공데이터포털 실거래가 API',
+      lawdCode: '',
       transactionCount: 0,
       usedTransactionCount: 0,
       totalRawCount: 0,
@@ -422,20 +516,41 @@ async function getMarketAnalysis(address, parsed) {
   }
 }
 
+function calculateCostApproach(areaText) {
+  const area = Number(String(areaText).replace(/[^0-9.]/g, '')) || 0;
+  if (!area) return null;
+
+  const replacementCostPerSqm = 5200000;
+  const depreciationRate = 0.32;
+  const landContribution = 360000000;
+
+  return Math.round(area * replacementCostPerSqm * (1 - depreciationRate) + landContribution);
+}
+
+function calculateIncomeApproach() {
+  const monthlyRentEstimate = 2300000;
+  const annualNetIncome = monthlyRentEstimate * 12 * 0.82;
+  const capRate = 0.042;
+
+  return Math.round(annualNetIncome / capRate);
+}
+
 function calculatePriorityRepayment(address, propertyType, deposit) {
   if (!deposit || deposit <= 0) return 0;
+
   const isCommercial = propertyType && propertyType.includes('상가');
 
   if (isCommercial) {
     if (address.includes('서울')) return deposit <= 65000000 ? 22000000 : 0;
     if (address.includes('세종') || address.includes('용인시') || address.includes('화성시') || address.includes('김포시')) return deposit <= 55000000 ? 19000000 : 0;
-    if (address.includes('광역시') || address.includes('안산시') || address.includes('광주시')) return deposit <= 38000000 ? 13000000 : 0;
+    if (address.includes('광역시') || address.includes('안산시') || address.includes('용인시') || address.includes('김포시') || address.includes('광주시')) return deposit <= 38000000 ? 13000000 : 0;
     return deposit <= 30000000 ? 10000000 : 0;
   }
 
   if (address.includes('서울')) return deposit <= 165000000 ? 55000000 : 0;
   if (address.includes('세종') || address.includes('용인시') || address.includes('화성시') || address.includes('김포시')) return deposit <= 145000000 ? 48000000 : 0;
   if (address.includes('광역시') || address.includes('안산시') || address.includes('광주시') || address.includes('파주시') || address.includes('이천시') || address.includes('평택시')) return deposit <= 85000000 ? 28000000 : 0;
+
   return deposit <= 75000000 ? 25000000 : 0;
 }
 
@@ -443,17 +558,21 @@ async function calculate() {
   const address = document.getElementById('address').value.trim();
 
   if (!address) {
-    document.getElementById('result').innerHTML = card('입력 오류', '<p class="text-amber-700 font-bold">주소를 먼저 입력해주세요.</p>');
+    document.getElementById('result').innerHTML =
+      card('입력 오류', '<p class="text-amber-700 font-bold">주소를 먼저 입력해주세요.</p>');
     return;
   }
 
   if (!registryText) {
-    document.getElementById('result').innerHTML = card('입력 오류', '<p class="text-amber-700 font-bold">등기부등본 파일을 먼저 업로드해주세요.</p>');
+    document.getElementById('result').innerHTML =
+      card('입력 오류', '<p class="text-amber-700 font-bold">등기부등본 파일을 먼저 업로드해주세요.</p>');
     return;
   }
 
   const parsed = parseRegistry(registryText);
-  document.getElementById('result').innerHTML = card('계산 중', '<p class="text-slate-600">VWorld 주소 변환 및 실거래가 API를 조회하고 있습니다...</p>');
+
+  document.getElementById('result').innerHTML =
+    card('계산 중', '<p class="text-slate-600">실거래가 API를 조회하고 있습니다...</p>');
 
   const market = await getMarketAnalysis(address, parsed);
   const tenant = document.getElementById('tenant').value;
@@ -464,42 +583,38 @@ async function calculate() {
     parseMoney(document.getElementById('monthlyDeposit').value)
   );
 
-  const collateralBase = Number.isFinite(market.investigationPrice) ? Math.round(market.investigationPrice * 0.7) : null;
-  const priorityRepayment = tenant === '없음' ? 0 : calculatePriorityRepayment(address, parsed.detailType, deposit);
+  const collateralBase = Number.isFinite(market.investigationPrice)
+    ? Math.round(market.investigationPrice * 0.7)
+    : null;
+
+  const priorityRepayment = tenant === '없음'
+    ? 0
+    : calculatePriorityRepayment(address, parsed.detailType, deposit);
 
   const finalValue = Number.isFinite(collateralBase)
     ? Math.max(0, collateralBase - deposit - priorityRepayment - parsed.seniorMortgageAmount)
     : null;
 
+  const costApproach = calculateCostApproach(parsed.exclusiveArea);
+  const incomeApproach = calculateIncomeApproach();
+
   document.getElementById('result').innerHTML = `
     <div id="pdfArea" class="space-y-4">
-      <div class="grid gap-4 md:grid-cols-4">
+      <div class="grid gap-4 md:grid-cols-3">
         ${summaryCard('최종 조사가액', formatMoney(market.investigationPrice), market.appliedPriceType)}
         ${summaryCard('담보 인정가 70%', formatMoney(collateralBase), '조사가액 × 0.7')}
-        ${summaryCard('최종 담보가치', formatMoney(finalValue), '차감 후', 'dark')}
-        ${summaryCard('분석 기준 거래', `${market.usedTransactionCount || market.transactionCount}건`, '동일 단지·유사 면적')}
+        ${summaryCard('최종 담보가치', formatMoney(finalValue), '보증금·최우선변제금·선순위 차감 후', 'dark')}
       </div>
 
-      ${card('위치 정보 및 지도', `
-        <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            ${
-              market.geo && market.geo.mapImageUrl
-                ? `<img src="${market.geo.mapImageUrl}" class="w-full rounded-xl border border-slate-200" />`
-                : `<div class="rounded-xl bg-slate-100 p-8 text-center text-slate-500">지도 표시 불가</div>`
-            }
-          </div>
-          ${grid([
-            ['입력 주소', address],
-            ['VWorld 보정 주소', market.geo?.refinedAddress || '확인 필요'],
-            ['좌표', market.geo?.x && market.geo?.y ? `${market.geo.x}, ${market.geo.y}` : '확인 필요'],
-            ['법정동코드 10자리', market.geo?.lawdFullCode || '확인 필요'],
-            ['LAWD_CD 5자리', market.geo?.lawdCode || '확인 필요']
-          ])}
+      ${card('문서 판별 상태', `
+        <div class="flex items-center gap-2">
+          <span class="${badgeClass(parsed.documentValidation.tone)}">${parsed.documentValidation.status}</span>
+          <span class="text-sm text-slate-500">감지 키워드 ${parsed.documentValidation.found.length}개</span>
         </div>
       `)}
 
       ${card('자동 추출 결과', grid([
+        ['주소', address],
         ['소유자', parsed.owner],
         ['아파트/단지명', parsed.apartmentName],
         ['건물유형', `${parsed.buildingType} / ${parsed.detailType}`],
@@ -520,14 +635,24 @@ async function calculate() {
 
       ${card('실거래가 분석 결과', grid([
         ['시세 출처', market.marketPriceSource],
+        ['법정동코드', market.lawdCode || '확인 필요'],
         ['API 메시지', market.errorMessage || '정상'],
         ['전체 원자료 건수', `${market.totalRawCount || 0}건`],
-        ['동일단지·유사면적 거래', `${market.transactionCount || 0}건`],
+        ['유사 거래 건수', `${market.transactionCount || 0}건`],
+        ['산정 사용 건수', `${market.usedTransactionCount || 0}건`],
         ['상위값', `${formatMoney(market.upperPrice)} / 이상치로 산정 제외`],
         ['중위값', formatMoney(market.middlePrice)],
         ['하위값', formatMoney(market.lowerPrice)],
         ['적용 시세', market.appliedPriceType]
       ]))}
+
+      ${card('감정평가 3방식 비교', `
+        <div class="grid gap-3 md:grid-cols-3">
+          ${methodCard('거래사례비교법', formatMoney(market.investigationPrice), '중심')}
+          ${methodCard('원가법', formatMoney(costApproach), '검증')}
+          ${methodCard('수익환원법', formatMoney(incomeApproach), '검증')}
+        </div>
+      `)}
 
       ${card('담보가치 계산 근거', `
         <p>담보 인정가 = ${formatMoney(market.investigationPrice)} × 70% = <b>${formatMoney(collateralBase)}</b></p>
@@ -543,8 +668,8 @@ async function calculate() {
       ${card('유의사항', `
         <ul class="list-disc pl-5 text-sm text-slate-600 space-y-1">
           <li>본 결과는 참고용 추정값이며 금융기관 확정 심사값이 아닙니다.</li>
-          <li>VWorld Geocoder 결과는 실시간 조회용으로 사용하며 별도 DB 저장을 전제로 하지 않습니다.</li>
-          <li>동일 단지명 추출은 OCR 품질에 따라 달라질 수 있습니다.</li>
+          <li>등기부등본만으로 일반 임차인 보증금은 확정할 수 없으므로 사용자 입력값을 우선 반영합니다.</li>
+          <li>최우선변제금은 주소, 물건 유형, 보증금 기준에 따라 단순 추정한 값입니다.</li>
           <li>공공데이터 실거래가 API의 데이터 존재 여부에 따라 조사가액이 달라질 수 있습니다.</li>
         </ul>
       `)}
@@ -553,21 +678,47 @@ async function calculate() {
 }
 
 function summaryCard(title, value, sub, type='normal') {
-  const cls = type === 'dark' ? 'bg-blue-700 text-white' : 'bg-white text-slate-900 border border-slate-200';
+  const cls = type === 'dark'
+    ? 'bg-blue-700 text-white'
+    : 'bg-white text-slate-900 border border-slate-200';
+
   const subCls = type === 'dark' ? 'text-blue-100' : 'text-slate-500';
-  return `<div class="rounded-2xl p-5 shadow-sm ${cls}"><p class="text-sm ${subCls}">${title}</p><p class="text-2xl font-black mt-2">${value}</p><p class="text-xs ${subCls} mt-1">${sub}</p></div>`;
+
+  return `
+    <div class="rounded-2xl p-5 shadow-sm ${cls}">
+      <p class="text-sm ${subCls}">${title}</p>
+      <p class="text-2xl font-black mt-2">${value}</p>
+      <p class="text-xs ${subCls} mt-1">${sub}</p>
+    </div>
+  `;
 }
 
 function card(title, body) {
-  return `<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200"><h3 class="font-bold mb-4">${title}</h3><div class="space-y-2 text-sm">${body}</div></div>`;
+  return `
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+      <h3 class="font-bold mb-4">${title}</h3>
+      <div class="space-y-2 text-sm">${body}</div>
+    </div>
+  `;
 }
 
 function grid(items) {
-  return `<div class="grid gap-3 md:grid-cols-2">${items.map(([k,v]) => `<div class="rounded-xl bg-slate-50 p-3"><p class="text-xs text-slate-500">${k}</p><p class="font-bold mt-1">${v}</p></div>`).join('')}</div>`;
+  return `
+    <div class="grid gap-3 md:grid-cols-2">
+      ${items.map(([k, v]) => `
+        <div class="rounded-xl bg-slate-50 p-3">
+          <p class="text-xs text-slate-500">${k}</p>
+          <p class="font-bold mt-1">${v}</p>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function mortgageTable(items) {
-  if (!items || !items.length) return '<p class="text-sm text-slate-500">유효한 근저당권 내역 없음</p>';
+  if (!items || !items.length) {
+    return '<p class="text-sm text-slate-500">유효한 근저당권 내역 없음</p>';
+  }
 
   return `
     <div class="overflow-x-auto">
@@ -593,6 +744,26 @@ function mortgageTable(items) {
   `;
 }
 
+function methodCard(name, value, role) {
+  const main = role === '중심';
+
+  return `
+    <div class="rounded-xl p-4 border ${main ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}">
+      <div class="flex justify-between">
+        <b>${name}</b>
+        <span class="text-xs rounded-full px-2 py-1 ${main ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}">${role}</span>
+      </div>
+      <p class="text-xl font-black mt-3">${value}</p>
+    </div>
+  `;
+}
+
+function badgeClass(tone) {
+  return tone === 'green'
+    ? 'rounded-full bg-emerald-50 text-emerald-700 px-2 py-1 text-xs font-bold border border-emerald-200'
+    : 'rounded-full bg-amber-50 text-amber-700 px-2 py-1 text-xs font-bold border border-amber-200';
+}
+
 function savePDF() {
   const target = document.getElementById('pdfArea') || document.getElementById('result');
 
@@ -608,7 +779,8 @@ function savePDF() {
     .save();
 }
 
-document.getElementById('result').innerHTML = card('시작하기', '<p class="text-slate-600">주소를 입력하고 등기부등본 파일을 업로드한 뒤 결과 계산하기를 눌러주세요.</p>');
+document.getElementById('result').innerHTML =
+  card('시작하기', '<p class="text-slate-600">주소를 입력하고 등기부등본 파일을 업로드한 뒤 결과 계산하기를 눌러주세요.</p>');
 </script>
 </body>
 </html>
