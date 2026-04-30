@@ -307,11 +307,32 @@ function parseRegistry(text) {
           ? '근저당 확인 필요'
           : '현재 유효한 근저당 없음';
 
-  const apartmentName =
-    getMatch(raw, /(?:건물명칭|건물명|명칭)\s*[:：]?\s*([가-힣A-Za-z0-9\s\-]+아파트)/, '') ||
-    getMatch(raw, /([가-힣A-Za-z0-9\s\-]+아파트)\s*(?:제\s*\d+동|제\s*\d+층|제\s*\d+호)/, '') ||
-    getMatch(raw, /([가-힣A-Za-z0-9\s\-]+(?:APT|apt))/, '') ||
-    '확인 필요';
+const apartmentNameCandidates = [
+  getMatch(raw, /건물명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+  getMatch(raw, /건물명\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+  getMatch(raw, /명칭\s*[:：]?\s*([^\n\r]{2,40})/, ''),
+  getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}아파트)/, ''),
+  getMatch(raw, /([가-힣A-Za-z0-9\-]{2,30}APT)/i, '')
+];
+
+let apartmentName = apartmentNameCandidates
+  .map(v => String(v || '').trim())
+  .find(v =>
+    v &&
+    v.length <= 40 &&
+    !v.includes('소유권') &&
+    !v.includes('근저당') &&
+    !v.includes('채권최고액') &&
+    !v.includes('등기') &&
+    !v.includes('사항') &&
+    !v.includes('접수')
+  ) || '확인 필요';
+
+apartmentName = apartmentName
+  .replace(/제\s*\d+동.*/, '')
+  .replace(/제\s*\d+층.*/, '')
+  .replace(/제\s*\d+호.*/, '')
+  .trim();
 
   return {
     documentValidation: validation,
