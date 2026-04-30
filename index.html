@@ -288,27 +288,23 @@ async function handleFile(event) {
   try {
     if (fileType === 'application/pdf' || lowerName.endsWith('.pdf')) {
 
-      try {
-        registryText = await extractTextFromPDF(file);
-      } catch (pdfTextError) {
-        registryText = '';
-        fileStatus.innerHTML =
-          `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">PDF 미리보기는 표시했지만 텍스트 추출은 실패했습니다. 스캔본이면 OCR이 필요합니다.</span>`;
-        input.value = '';
-        return;
-      }
+  try {
+    registryText = await extractTextFromPDF(file);
+  } catch (pdfTextError) {
+    registryText = '';
+    fileStatus.innerHTML =
+      `업로드 완료: ${fileName}<br><span class="text-amber-700 font-bold">텍스트 추출 실패</span>`;
+    input.value = '';
+    return;
+  }
 
-    } else if (fileType.startsWith('image/') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) {
-      await renderImagePreview(file);
-      registryText = await extractTextFromImage(file);
+} else if (lowerName.endsWith('.txt')) {
 
-    } else if (lowerName.endsWith('.txt')) {
-      registryText = await readTextFile(file);
+  registryText = await readTextFile(file);
 
-    } else {
-      throw new Error('지원하지 않는 파일 형식입니다.');
-    }
-
+} else {
+  throw new Error('지원하지 않는 파일 형식입니다.');
+}
     if (registryText && registryText.trim().length > 30) {
       fileStatus.innerHTML =
         `업로드 완료: ${fileName}<br><span class="text-emerald-700 font-bold">문서 텍스트를 읽었습니다.</span>`;
@@ -326,49 +322,6 @@ async function handleFile(event) {
   }
 
   input.value = '';
-}
-  
-async function renderPDFPreview(file) {
-  const preview = document.getElementById('pdfPreview');
-  if (!preview) return;
-
-  if (!window.pdfjsLib) {
-    preview.innerHTML = '<p class="text-amber-700 font-bold">PDF 미리보기를 불러오지 못했습니다.</p>';
-    return;
-  }
-
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-  preview.innerHTML = `
-    <div class="rounded-2xl bg-white border border-slate-200 p-4">
-      <p class="font-bold mb-3">업로드한 PDF 미리보기</p>
-      <div id="pdfCanvasBox" class="space-y-4"></div>
-    </div>
-  `;
-
-  const box = document.getElementById('pdfCanvasBox');
-  const buffer = await file.arrayBuffer();
-  const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 1.25 });
-
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.className = 'w-full rounded-xl border border-slate-200 bg-white shadow-sm';
-
-    await page.render({
-      canvasContext: context,
-      viewport
-    }).promise;
-
-    box.appendChild(canvas);
-  }
 }
 
 function readTextFile(file) {
@@ -685,8 +638,6 @@ async function calculate() {
     costApproach
   );
 
-  const collateralLtvRate = 0.7;
-
   const priorityRepayment = tenant === '없음'
     ? 0
     : calculatePriorityRepayment(address, parsed.detailType, deposit);
@@ -787,15 +738,15 @@ ${card('감정평가 3방식 비교', `
 
 
       ${card('권리 차감 후 최종 담보가치', `
-        <p>담보 인정가 = <b>${formatMoney(collateralBase)}</b></p>
-        <p>적용 임차보증금 = <b>${formatMoney(deposit)}</b></p>
-        <p>최우선변제금 = <b>${formatMoney(priorityRepayment)}</b></p>
-        <p>선순위 근저당 = <b>${formatMoney(parsed.seniorMortgageAmount)}</b></p>
-        <p class="mt-3 rounded-xl bg-blue-50 p-3 font-bold text-blue-900">
-          최종 담보가치 = ${formatMoney(collateralBase)} - ${formatMoney(deposit)} - ${formatMoney(priorityRepayment)} - ${formatMoney(parsed.seniorMortgageAmount)}
-          = ${formatMoney(finalValue)}
-        </p>
-      `)}
+      <p>감정평가 시산가액 = <b>${formatMoney(weightedAppraisalValue)}</b></p>
+      <p>적용 임차보증금 = <b>${formatMoney(deposit)}</b></p>
+      <p>최우선변제금 = <b>${formatMoney(priorityRepayment)}</b></p>
+      <p>선순위 근저당 = <b>${formatMoney(parsed.seniorMortgageAmount)}</b></p>
+      <p class="mt-3 rounded-xl bg-blue-50 p-3 font-bold text-blue-900">
+        최종 담보가치 = ${formatMoney(weightedAppraisalValue)} - ${formatMoney(deposit)} - ${formatMoney(priorityRepayment)} - ${formatMoney(parsed.seniorMortgageAmount)}
+        = ${formatMoney(finalValue)}
+      </p>
+`)}
 
       ${card('유의사항', `
         <ul class="list-disc pl-5 text-sm text-slate-600 space-y-1">
