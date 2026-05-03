@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>부동산 가치평가 시스템</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    .card{background:#fff;border:0.5px solid #E2E0D8;border-radius:8px;padding:14px 16px;margin-bottom:10px}
+    .card-title{font-size:10px;font-weight:500;color:#888780;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+    .row-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid #F0EEE6;font-size:12px}
+    .row-item:last-child{border-bottom:none}
+    .row-label{color:#888780}
+    .row-val{font-weight:500;color:#2C2C2A}
+    .row-val.blue{color:#185FA5}
+    .row-val.warn{color:#854F0B}
+    .row-val.muted{color:#B0ADA4;text-decoration:line-through}
+    .method-row{display:grid;grid-template-columns:28px 1fr 56px 80px;gap:6px;align-items:center;padding:5px 0;border-bottom:0.5px solid #F0EEE6;font-size:12px}
+    .method-row:last-child{border-bottom:none}
+    .pct-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#F1EFE8;color:#5F5E5A;font-weight:500;text-align:center}
+    .toggle-link{font-size:10px;color:#888780;cursor:pointer;background:none;border:none;padding:0;margin-top:6px;display:inline-flex;align-items:center;gap:2px}
+    .toggle-link:hover{color:#2C2C2A}
+    .detail-box{display:none;margin-top:8px;background:#F8F7F3;border-radius:6px;padding:10px 12px;font-size:10px;color:#5F5E5A;line-height:1.9}
+    .detail-box.open{display:block}
+    .detail-strong{color:#2C2C2A;font-weight:500}
+    .detail-result{color:#185FA5;font-weight:500}
+    .final-box{background:#E6F1FB;border-radius:6px;padding:9px 12px;font-size:11px;color:#0C447C;font-weight:500;margin-top:8px;line-height:1.9}
+    #pdfLayout{display:none}
+    .pdf-header{background:#0C447C;padding:16px 20px}
+    .pdf-header-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:3px}
+    .pdf-header-sub{font-size:9px;color:#B5D4F4}
+    .pdf-body{padding:14px 18px;background:#fff}
+    .pdf-sum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .pdf-sc-l{background:#F1EFE8;border-radius:5px;padding:9px 12px}
+    .pdf-sc-d{background:#0C447C;border-radius:5px;padding:9px 12px}
+    .pdf-sl{font-size:8px;color:#888780;margin-bottom:3px}
+    .pdf-sl-w{font-size:8px;color:#B5D4F4;margin-bottom:3px}
+    .pdf-sv{font-size:14px;font-weight:600;color:#2C2C2A}
+    .pdf-sv-w{font-size:14px;font-weight:600;color:#fff}
+    .pdf-sec{margin-bottom:11px}
+    .pdf-sec-title{font-size:8px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding-bottom:3px;border-bottom:0.5px solid #B5D4F4}
+    .pdf-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px}
+    .pdf-row{display:flex;justify-content:space-between;font-size:8.5px;padding:2px 0}
+    .pdf-lbl{color:#888780}
+    .pdf-val{font-weight:500;color:#2C2C2A}
+    .pdf-table{width:100%;font-size:8.5px;border-collapse:collapse}
+    .pdf-table th{background:#F1EFE8;color:#5F5E5A;font-weight:500;padding:4px 6px;text-align:left;border:0.5px solid #D3D1C7}
+    .pdf-table td{padding:4px 6px;border:0.5px solid #D3D1C7;color:#2C2C2A}
+    .pdf-table .tot td{background:#E6F1FB;color:#185FA5;font-weight:600}
+    .pdf-final{background:#E6F1FB;border-radius:4px;padding:7px 10px;font-size:8.5px;color:#185FA5;font-weight:500;margin-top:6px;line-height:1.8}
+    .pdf-footer{background:#F1EFE8;padding:6px 18px;font-size:7.5px;color:#888780;text-align:center;border-top:0.5px solid #D3D1C7}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div class="max-w-7xl mx-auto p-5">
+  <header class="mb-6 flex items-center justify-between gap-4 rounded-lg bg-white p-5 shadow-sm border border-slate-200">
+    <div>
+      <h1 class="text-2xl font-extrabold">부동산 가치평가 시스템</h1>
+      <p class="text-sm text-slate-500 mt-1">등기부등본 자동 분석 + 실거래가 기반 담보가치 산정</p>
+    </div>
+  </header>
+  <main class="grid gap-6 lg:grid-cols-[400px_1fr]">
+    <section class="space-y-3">
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+        <h2 class="font-bold mb-3 text-sm">1. 주소 입력</h2>
+        <input id="address" class="w-full border border-slate-200 p-3 rounded-lg text-sm" placeholder="주소를 입력해주세요" />
+        <p class="text-xs text-slate-400 mt-2">예: 전북특별자치도 전주시 완산구 중화산동2가 746-1</p>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+        <h2 class="font-bold mb-3 text-sm">2. 등기부등본 업로드</h2>
+        <div class="rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-5 text-center">
+          <div class="text-2xl mb-2">📄</div>
+          <p class="font-bold text-sm">PDF 업로드</p>
+          <label for="registryFile" class="inline-block mt-3 cursor-pointer rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white">파일 선택</label>
+          <input id="registryFile" type="file" accept="application/pdf,.txt" class="hidden" onchange="handleFile(event)" />
+        </div>
+        <div id="fileStatus" class="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">업로드된 파일 없음</div>
+        <button onclick="analyzeDocument()" class="mt-3 w-full rounded-lg bg-slate-900 text-white py-2.5 text-sm font-bold">문서 인식 및 자동 분석</button>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+        <h2 class="font-bold mb-3 text-sm">3. 임차인 현황 입력</h2>
+        <select id="tenant" class="w-full border border-slate-200 p-3 rounded-lg mb-3 text-sm" onchange="toggleTenant()">
+          <option>없음</option>
+          <option>있음</option>
+        </select>
+        <div id="depositBox" class="space-y-2" style="display:none;">
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">전세보증금</label>
+            <input id="jeonseDeposit" placeholder="예: 200,000,000" class="w-full border border-slate-200 p-2.5 rounded-lg text-sm" oninput="formatInput(this,'jeonseText')" />
+            <p id="jeonseText" class="text-xs text-slate-400 mt-1"></p>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">월세 보증금</label>
+            <input id="monthlyDeposit" placeholder="예: 10,000,000" class="w-full border border-slate-200 p-2.5 rounded-lg text-sm" oninput="formatInput(this,'monthlyText')" />
+            <p id="monthlyText" class="text-xs text-slate-400 mt-1"></p>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">월세액</label>
+            <input id="monthlyRent" placeholder="예: 500,000" class="w-full border border-slate-200 p-2.5 rounded-lg text-sm" oninput="formatInput(this,'monthlyRentText')" />
+            <p id="monthlyRentText" class="text-xs text-slate-400 mt-1"></p>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1 block">임차보증금 (기타)</label>
+            <input id="leaseDeposit" placeholder="예: 50,000,000" class="w-full border border-slate-200 p-2.5 rounded-lg text-sm" oninput="formatInput(this,'leaseText')" />
+            <p id="leaseText" class="text-xs text-slate-400 mt-1"></p>
+          </div>
+        </div>
+      </div>
+      <button onclick="calculate()" class="w-full bg-blue-700 hover:bg-blue-800 text-white px-4 py-3.5 rounded-lg font-extrabold shadow-sm text-sm">결과 계산하기</button>
+    </section>
+    <section id="result" class="space-y-3"></section>
+  </main>
+</div>
+
+<!-- PDF 전용 숨김 레이아웃 -->
+<div id="pdfLayout">
+  <div class="pdf-header">
+    <div class="pdf-header-title">부동산 담보가치 평가 보고서</div>
+    <div class="pdf-header-sub" id="pdfHeaderSub"></div>
+  </div>
+  <div class="pdf-body">
+    <div class="pdf-sum">
+      <div class="pdf-sc-l"><div class="pdf-sl">감정평가 시산가액</div><div class="pdf-sv" id="pdfAppraisal"></div></div>
+      <div class="pdf-sc-d"><div class="pdf-sl-w">최종 담보가치</div><div class="pdf-sv-w" id="pdfFinal"></div></div>
+    </div>
+    <div class="pdf-sec"><div class="pdf-sec-title">물건 기본정보</div><div class="pdf-grid" id="pdfInfo"></div></div>
+    <div class="pdf-sec"><div class="pdf-sec-title">근저당권 현황</div><div id="pdfMortgage"></div></div>
+    <div class="pdf-sec"><div class="pdf-sec-title">실거래가 분석</div><div class="pdf-grid" id="pdfMarket"></div></div>
+    <div class="pdf-sec"><div class="pdf-sec-title">감정평가 3방식 비교</div><table class="pdf-table" id="pdfMethods"></table></div>
+    <div class="pdf-sec">
+      <div class="pdf-sec-title">권리 차감 내역</div>
+      <div class="pdf-grid" id="pdfDeduction"></div>
+      <div class="pdf-final" id="pdfFinalFormula"></div>
+    </div>
+    <div class="pdf-sec">
+      <div class="pdf-sec-title">유의사항</div>
+      <p style="font-size:7.5px;color:#888780;line-height:1.8">본 결과는 참고용 추정값이며 금융기관 확정 심사값이 아닙니다. 거래사례비교법 70%, 수익환원법 20%, 원가법 10%는 시산가액 조정을 위한 가중치이며, 데이터 부재 시 가중치가 재배분됩니다. 등기부등본만으로 임차인 보증금을 확정할 수 없으므로 사용자 입력값을 우선 반영합니다. 최우선변제금은 2023년 개정 기준으로 추정하며, 월세 임차인은 보증금+월세×100 환산 기준을 적용합니다.</p>
+    </div>
+  </div>
+  <div class="pdf-footer">본 보고서는 참고용이며 금융기관 확정 심사값이 아닙니다 · 부동산 가치평가 시스템 · <span id="pdfDate"></span></div>
+</div>
+
+<script>
+let registryText = '';
+let lastCalcData = null;
+
+function formatMoney(n) {
+  if (n===null||n===undefined||n==='') return '확인 필요';
+  if (typeof n==='string') return n;
+  if (!Number.isFinite(n)) return '확인 필요';
+  const sign=n<0?'-':'', abs=Math.abs(n);
+  if (abs>=100000000) {
+    const e=Math.floor(abs/100000000), m=Math.floor((abs%100000000)/10000);
+    return m?`${sign}${e}억 ${m.toLocaleString()}만원`:`${sign}${e}억원`;
+  }
+  if (abs>=10000) return `${sign}${Math.floor(abs/10000).toLocaleString()}만원`;
+  return `${sign}${abs.toLocaleString()}원`;
+}
+function parseMoney(v){return Number(String(v||'').replace(/[^0-9]/g,''))||0;}
+function formatKorean(n){
+  if(!n)return'';
+  const e=Math.floor(n/100000000),m=Math.floor((n%100000000)/10000);
+  if(e>0&&m>0)return`${e}억 ${m.toLocaleString()}만원`;
+  if(e>0)return`${e}억원`;
+  if(m>0)return`${m.toLocaleString()}만원`;
+  return`${n.toLocaleString()}원`;
+}
+function formatInput(inp,tid){
+  const raw=inp.value.replace(/[^0-9]/g,'');
+  if(!raw){inp.value='';document.getElementById(tid).innerText='';return;}
+  const num=Number(raw);inp.value=num.toLocaleString();
+  document.getElementById(tid).innerText=`(${formatKorean(num)})`;
+}
+function toPyeong(m2){const n=Number(String(m2||'').replace(/[^0-9.]/g,''));return n?(n/3.3058).toFixed(2):null;}
+function areaWithPyeong(t){const p=toPyeong(t);return p?`${t} (${p}평)`:t;}
+function cleanText(t){return String(t||'').replace(/\s+/g,'');}
+function normalizeSpaces(t){return String(t||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n\s+/g,'\n').trim();}
+function getMatch(text,re,fb=''){const m=text.match(re);return m&&m[1]?String(m[1]).trim():fb;}
+function getLastMatch(text,re,fb=''){const ms=Array.from(text.matchAll(re));if(!ms.length)return fb;const l=ms[ms.length-1];return l&&l[1]?String(l[1]).trim():fb;}
+function today(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+function extractBuildingName(raw){
+  const lines=String(raw||'').split('\n').map(v=>v.trim()).filter(Boolean);
+  const tl=lines.find(l=>l.includes('[집합건물]')&&l.includes('제')&&l.includes('동')&&!l.includes('소유자'));
+  if(tl){const c=tl.replace('[집합건물]','').trim();const m=c.match(/(?:\d+(?:-\d+)?\s+)([가-힣A-Za-z0-9]+)\s+제\d+동/);if(m&&m[1])return m[1].trim();}
+  const block=getMatch(raw,/【\s*표\s*제\s*부\s*】[\s\S]*?(?=【\s*갑\s*구\s*】|【\s*을\s*구\s*】|$)/,'');
+  const m2=block.match(/([가-힣A-Za-z0-9]+)\s+제\d+동/);if(m2&&m2[1])return m2[1].trim();
+  return '확인 필요';
+}
+function toggleTenant(){
+  const t=document.getElementById('tenant').value;
+  document.getElementById('depositBox').style.display=t==='없음'?'none':'block';
+  if(t==='없음')['jeonseDeposit','monthlyDeposit','monthlyRent','leaseDeposit'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+function extractMortgageList(raw){
+  const text=String(raw||'').replace(/\s+/g,' ').trim();
+  const start=text.indexOf('3. (근)저당권 및 전세권 등');if(start<0)return[];
+  const end=text.indexOf('[ 참 고 사 항 ]',start);
+  const block=text.slice(start,end>start?end:text.length);
+  if(block.includes('기록사항 없음')&&!block.includes('채권최고액'))return[];
+  const rows=[];
+  const parts=block.split(/(?=\d+\s+근저당권설정\s+\d{4}년)/g);
+  parts.forEach(part=>{
+    if(!part.includes('채권최고액')||!part.includes('근저당권자'))return;
+    const am=part.match(/채권최고액\s*금\s*([\d,]+)\s*원/);
+    const lm=part.match(/근저당권자\s+([가-힣A-Za-z0-9\s]+?)(?=\s+\d+\s+근저당권설정|\s*\[|\s*가\.|$)/);
+    if(!am||!lm)return;
+    const amount=Number(am[1].replace(/,/g,''))||0,lender=lm[1].replace(/\s+/g,'').trim();
+    if(amount&&lender)rows.push({rank:rows.length+1,lender,amount});
+  });
+  return rows;
+}
+async function handleFile(event){
+  const file=event.target.files&&event.target.files[0];if(!file)return;
+  registryText='';
+  const fn=file.name||'',ft=file.type||'',ln=fn.toLowerCase();
+  const fs=document.getElementById('fileStatus');
+  fs.innerHTML=`업로드 완료: ${fn}<br><span style="color:#888780">읽는 중...</span>`;
+  try{
+    if(ft==='application/pdf'||ln.endsWith('.pdf'))registryText=await extractTextFromPDF(file);
+    else if(ln.endsWith('.txt'))registryText=await readTextFile(file);
+    else throw new Error('PDF 또는 TXT 파일만 지원합니다.');
+    fs.innerHTML=registryText&&registryText.trim().length>30
+      ?`업로드 완료: ${fn}<br><span style="color:#3B6D11;font-weight:500">텍스트 추출 성공</span>`
+      :`업로드 완료: ${fn}<br><span style="color:#854F0B;font-weight:500">텍스트 부족 — 스캔본은 텍스트 PDF로 변환 필요</span>`;
+  }catch(e){fs.innerHTML=`<span style="color:#854F0B;font-weight:500">읽기 실패: ${e.message}</span>`;}
+  event.target.value='';
+}
+function readTextFile(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(String(e.target.result||''));r.onerror=()=>rej(new Error('읽기 실패'));r.readAsText(file,'utf-8');});}
+async function extractTextFromPDF(file){
+  if(!window.pdfjsLib)throw new Error('PDF.js 로드 실패');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+  const pages=[];
+  for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();pages.push(c.items.map(it=>it.str||'').join(' '));}
+  return pages.join('\n');
+}
+function validateRegistry(text){
+  if(!text||text.trim().length<20)return{status:'OCR 실패',tone:'amber',found:[]};
+  const c=cleanText(text);
+  const kws=['등기사항전부증명서','등기사항일부증명서','집합건물','표제부','갑구','을구','고유번호','전유부분의건물의표시','대지권의표시','주요등기사항요약'];
+  const found=kws.filter(k=>c.includes(k));
+  if(found.length>=5)return{status:'등기부등본 확실',tone:'green',found};
+  if(found.length>=2)return{status:'등기부등본 가능',tone:'amber',found};
+  return{status:'문서 유형 확인 필요',tone:'amber',found};
+}
+function parseRegistry(text){
+  const raw=normalizeSpaces(text),compact=cleanText(raw);
+  const validation=validateRegistry(raw),apartmentName=extractBuildingName(raw);
+  let owner='확인 필요';
+  const os=raw.indexOf('1. 소유지분현황');
+  const oe1=raw.indexOf('2. 소유지분을 제외한',os),oe2=raw.indexOf('3. (근)',os),oe3=raw.indexOf('참 고 사 항',os);
+  const oes=[oe1,oe2,oe3].filter(i=>i>os);const oe=oes.length?Math.min(...oes):os+500;
+  const ob=os>=0?raw.slice(os,oe):'';
+  const om=ob.match(/([가-힣]{2,5})\s*\(\s*소유자\s*\)/);if(om&&om[1])owner=om[1].trim();
+  if(owner==='확인 필요'){const og=getLastMatch(raw,/소유자\s+([가-힣]{2,5})/g,'');if(og)owner=og;}
+  if(['혹은','공유자','현황','확인','지분','변경','말소'].includes(owner))owner='확인 필요';
+  const unitRaw=getMatch(raw,/(제\s*\d+층\s*제\s*\d+호)/,'확인 필요');
+  const unitNumber=unitRaw.replace(/\s+/g,' ');
+  const currentFloor=Number(getMatch(unitNumber,/제\s*(\d+)층/,'0'));
+  let excSec=getMatch(raw,/전유부분의 건물의 표시[\s\S]*?(?:건 물 내 역|건물내역)([\s\S]*?)(?:\( 대지권의 표시 \)|대지권의 표시|【 갑 구 】|【 을 구 】|$)/,'');
+  if(!excSec)excSec=getMatch(raw,/전유부분의 건물의 표시[\s\S]*?(제\s*\d+층\s*제\s*\d+호[\s\S]*?㎡)/,'');
+  const areaValue=getMatch(excSec,/(\d+(?:\.\d+)?)\s*㎡/,'');
+  const sf=Number(getMatch(raw,/지붕\s*(\d+)층/,'0'))||Number(getMatch(raw,/구조[\s\S]{0,40}?(\d+)층/,'0'));
+  const fns=Array.from(raw.matchAll(/(?:^|\n|\s)(\d+)층\s+\d+(?:\.\d+)?㎡/g)).map(m=>Number(m[1]));
+  const totalFloors=sf||(fns.length?Math.max(...fns):0);
+  const mortgageList=extractMortgageList(raw);
+  const seniorMortgageAmount=mortgageList.reduce((s,i)=>s+i.amount,0);
+  return{
+    documentValidation:validation,owner,apartmentName,
+    buildingType:compact.includes('집합건물')?'집합건물':compact.includes('건물')?'건물':'확인 필요',
+    detailType:compact.includes('아파트')?'아파트':compact.includes('오피스텔')?'오피스텔':compact.includes('상가')?'상가':'확인 필요',
+    unitNumber,exclusiveArea:areaValue?`${areaValue}㎡`:'확인 필요',
+    areaNumber:Number(areaValue||0),currentFloor,totalFloors,
+    medianFloor:totalFloors?totalFloors/2:0,
+    mortgageStatus:mortgageList.length>0?'유효 근저당 있음':'유효 근저당 없음',
+    seniorMortgageAmount,mortgageList
+  };
+}
+function analyzeDocument(){
+  if(!registryText){document.getElementById('fileStatus').innerHTML='<span style="color:#854F0B;font-weight:500">파일을 먼저 업로드해주세요.</span>';return;}
+  const v=validateRegistry(registryText);
+  document.getElementById('fileStatus').innerHTML=`<span style="color:${v.tone==='green'?'#3B6D11':'#854F0B'};font-weight:500">${v.status}</span> · 감지 키워드 ${v.found.length}개`;
+}
+
+async function fetchApi(endpoint,body){
+  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  return await r.json();
+}
+async function getMarketAnalysis(address,parsed){
+  try{
+    const d=await fetchApi('/api/transactions',{address,aptName:parsed.apartmentName==='확인 필요'?'':parsed.apartmentName,unitNumber:parsed.unitNumber,exclusiveArea:parsed.exclusiveArea,currentFloor:parsed.currentFloor,totalFloors:parsed.totalFloors,area:parsed.areaNumber});
+    if(!Number(d.investigationPrice))throw new Error(d.message||'실거래가 없음');
+    return{marketPriceSource:d.source||'공공데이터포털',lawdCode:d.lawdCode||'',transactionCount:d.transactionCount||0,usedTransactionCount:d.usedTransactionCount||0,totalRawCount:d.totalRawCount||0,upperPrice:d.upperPrice||null,middlePrice:d.middlePrice||null,lowerPrice:d.lowerPrice||null,appliedPriceType:d.appliedPriceType||'하위값',investigationPrice:Number(d.investigationPrice),apiConnected:true,errorMessage:d.message||''};
+  }catch(e){return{marketPriceSource:'공공데이터포털',lawdCode:'',transactionCount:0,usedTransactionCount:0,totalRawCount:0,upperPrice:null,middlePrice:null,lowerPrice:null,appliedPriceType:'데이터 부재',investigationPrice:null,apiConnected:false,errorMessage:e.message};}
+}
+async function getRentAnalysis(address,parsed){
+  try{
+    const d=await fetchApi('/api/rent',{address,aptName:parsed.apartmentName==='확인 필요'?'':parsed.apartmentName,area:parsed.areaNumber});
+    return{rentCount:d.rentCount||0,medianMonthlyRent:d.medianMonthlyRent||null,annualNetIncome:d.annualNetIncome||null,convertRate:d.convertRate||0.04,capRate:d.capRate||0.045,incomeApproach:d.incomeApproach||null,message:d.message||''};
+  }catch(e){return{rentCount:0,medianMonthlyRent:null,annualNetIncome:null,convertRate:0.04,capRate:0.045,incomeApproach:null,message:e.message};}
+}
+async function getCostAnalysis(address,parsed){
+  try{
+    const d=await fetchApi('/api/cost',{address,aptName:parsed.apartmentName==='확인 필요'?'':parsed.apartmentName,area:parsed.areaNumber,currentFloor:parsed.currentFloor,unitNumber:parsed.unitNumber});
+    return{costApproach:d.costApproach||null,officialPrice:d.officialPrice||null,method:d.method||'',message:d.message||'',fallback:d.fallback||false};
+  }catch(e){return{costApproach:null,officialPrice:null,method:'연결 실패',message:e.message,fallback:true};}
+}
+
+function calcPriorityRepayment(address,detailType,jeonseDeposit,monthlyDeposit,monthlyRent,leaseDeposit){
+  const monthlyConverted=monthlyDeposit+(monthlyRent*100);
+  const effectiveDeposit=Math.max(jeonseDeposit,monthlyConverted,leaseDeposit);
+  if(!effectiveDeposit)return{amount:0,basis:'임차인 없음'};
+  const isCommercial=detailType&&detailType.includes('상가');
+  let limit=0,repayment=0,region='';
+  if(isCommercial){
+    if(address.includes('서울')){limit=65000000;repayment=22000000;region='서울';}
+    else if(['세종','용인시','화성시','김포시'].some(v=>address.includes(v))){limit=55000000;repayment=19000000;region='과밀억제권역';}
+    else if(['광역시','안산시','광주시'].some(v=>address.includes(v))){limit=38000000;repayment=13000000;region='광역시 등';}
+    else{limit=30000000;repayment=10000000;region='그 외';}
+  }else{
+    if(address.includes('서울')){limit=165000000;repayment=55000000;region='서울';}
+    else if(['세종','용인시','화성시','김포시'].some(v=>address.includes(v))){limit=145000000;repayment=48000000;region='과밀억제권역';}
+    else if(['광역시','안산시','광주시','파주시','이천시','평택시'].some(v=>address.includes(v))){limit=85000000;repayment=28000000;region='광역시 등';}
+    else{limit=75000000;repayment=25000000;region='그 외';}
+  }
+  const isSmall=effectiveDeposit<=limit;
+  return{
+    amount:isSmall?repayment:0,
+    basis:isSmall
+      ?`소액임차인 해당 (보증금 ${formatKorean(effectiveDeposit)} ≤ 기준 ${formatKorean(limit)}, ${region})`
+      :`소액임차인 미해당 (보증금 ${formatKorean(effectiveDeposit)} > 기준 ${formatKorean(limit)}, ${region})`
+  };
+}
+function calcWeighted(sales,income,cost){
+  if(!Number.isFinite(sales))return null;
+  const si=Number.isFinite(income)?income:null,sc=Number.isFinite(cost)?cost:null;
+  if(si!==null&&sc!==null)return Math.round(sales*0.7+si*0.2+sc*0.1);
+  if(si!==null)return Math.round(sales*0.7+si*0.3);
+  if(sc!==null)return Math.round(sales*0.7+sc*0.3);
+  return Math.round(sales);
+}
+function buildFinalFormula(w,dep,pri,mort,final){
+  const deds=[];
+  if(dep>0)deds.push(formatMoney(dep));
+  if(pri>0)deds.push(formatMoney(pri));
+  if(mort>0)deds.push(formatMoney(mort));
+  return deds.length?`최종 담보가치 = ${formatMoney(w)} − ${deds.join(' − ')} = ${formatMoney(final)}`:`최종 담보가치 = ${formatMoney(w)} (차감 항목 없음)`;
+}
+
+async function calculate(){
+  const address=document.getElementById('address').value.trim();
+  if(!address){showResult('<div class="card"><p style="color:#854F0B;font-weight:500">주소를 입력해주세요.</p></div>');return;}
+  if(!registryText){showResult('<div class="card"><p style="color:#854F0B;font-weight:500">등기부등본을 업로드해주세요.</p></div>');return;}
+  const parsed=parseRegistry(registryText);
+  showResult('<div class="card"><p style="color:#5F5E5A;font-size:13px">실거래가·전월세·공시가격 API 조회 중...</p></div>');
+  const[market,rent,costData]=await Promise.all([getMarketAnalysis(address,parsed),getRentAnalysis(address,parsed),getCostAnalysis(address,parsed)]);
+  const tenantType=document.getElementById('tenant').value;
+  const jD=parseMoney(document.getElementById('jeonseDeposit').value);
+  const mD=parseMoney(document.getElementById('monthlyDeposit').value);
+  const mR=parseMoney(document.getElementById('monthlyRent').value);
+  const lD=parseMoney(document.getElementById('leaseDeposit').value);
+  const totalDeposit=tenantType==='없음'?0:Math.max(jD,mD+mR*100,lD);
+  const priorityInfo=tenantType==='없음'?{amount:0,basis:'임차인 없음'}:calcPriorityRepayment(address,parsed.detailType,jD,mD,mR,lD);
+  const salesVal=market.investigationPrice,incomeVal=rent.incomeApproach,costVal=costData.costApproach;
+  const weighted=calcWeighted(salesVal,incomeVal,costVal);
+  const finalVal=Number.isFinite(weighted)?weighted-totalDeposit-priorityInfo.amount-parsed.seniorMortgageAmount:null;
+  let weightNote='거래사례 70% / 수익환원 20% / 원가법 10%';
+  if(!incomeVal&&!costVal)weightNote='거래사례 100% (다른 방식 데이터 없음)';
+  else if(!incomeVal)weightNote='거래사례 70% / 원가법 30% (전월세 데이터 없음)';
+  else if(!costVal)weightNote='거래사례 70% / 수익환원 30% (원가법 데이터 없음)';
+  lastCalcData={address,parsed,market,rent,costData,salesVal,incomeVal,costVal,weighted,totalDeposit,priorityInfo,finalVal,weightNote};
+  renderResult(lastCalcData);
+  fillPdfLayout(lastCalcData);
+}
+
+function renderResult(d){
+  const{address,parsed,market,rent,costData,salesVal,incomeVal,costVal,weighted,totalDeposit,priorityInfo,finalVal,weightNote}=d;
+  const salesW=Number.isFinite(salesVal)?Math.round(salesVal*0.7):null;
+  const incomeW=Number.isFinite(incomeVal)?Math.round(incomeVal*0.2):null;
+  const costW=Number.isFinite(costVal)?Math.round(costVal*0.1):null;
+  const html=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#F8F7F3;border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;color:#888780;margin-bottom:4px">감정평가 시산가액</div>
+        <div style="font-size:18px;font-weight:600;color:#2C2C2A">${formatMoney(weighted)}</div>
+        <div style="font-size:9px;color:#888780;margin-top:2px">${weightNote}</div>
+      </div>
+      <div style="background:#185FA5;border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;color:#B5D4F4;margin-bottom:4px">최종 담보가치</div>
+        <div style="font-size:18px;font-weight:600;color:#fff">${formatMoney(finalVal)}</div>
+        <div style="font-size:9px;color:#B5D4F4;margin-top:2px">권리 차감 후</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:#F8F7F3;border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:9px;padding:2px 8px;border-radius:4px;font-weight:500;background:${parsed.documentValidation.tone==='green'?'#EAF3DE':'#FAEEDA'};color:${parsed.documentValidation.tone==='green'?'#3B6D11':'#854F0B'}">${parsed.documentValidation.status}</span>
+      <span style="font-size:10px;color:#888780">감지 키워드 ${parsed.documentValidation.found.length}개</span>
+      <span style="color:#D3D1C7;font-size:10px">|</span>
+      <span style="font-size:10px;color:#888780">소유자 <strong style="color:#2C2C2A">${parsed.owner}</strong></span>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="resetAndRecalculate()" style="flex:1;background:transparent;border:0.5px solid #D3D1C7;border-radius:6px;padding:7px;font-size:11px;font-weight:500;color:#5F5E5A;cursor:pointer">↺ 다시 계산하기</button>
+      <button onclick="savePDF()" style="padding:7px 16px;background:#185FA5;border:none;border-radius:6px;font-size:11px;font-weight:500;color:#fff;cursor:pointer">PDF 저장</button>
+    </div>
+    <div class="card">
+      <div class="card-title">자동 추출 결과</div>
+      <div class="row-item"><span class="row-label">주소</span><span class="row-val">${address}</span></div>
+      <div class="row-item"><span class="row-label">소유자</span><span class="row-val">${parsed.owner}</span></div>
+      <div class="row-item"><span class="row-label">아파트/단지명</span><span class="row-val">${parsed.apartmentName}</span></div>
+      <div class="row-item"><span class="row-label">건물번호</span><span class="row-val">${parsed.unitNumber}</span></div>
+      <div class="row-item"><span class="row-label">전유면적</span><span class="row-val">${areaWithPyeong(parsed.exclusiveArea)}</span></div>
+      <div class="row-item"><span class="row-label">해당 층 / 총 층수</span><span class="row-val">${parsed.currentFloor?parsed.currentFloor+'층':'확인 필요'} / ${parsed.totalFloors?parsed.totalFloors+'층':'확인 필요'}</span></div>
+      <div class="row-item"><span class="row-label">근저당 현황</span><span class="row-val ${parsed.mortgageList.length>0?'warn':''}">${parsed.mortgageStatus}</span></div>
+      <div class="row-item"><span class="row-label">선순위 근저당</span><span class="row-val ${parsed.seniorMortgageAmount>0?'warn':''}">${formatMoney(parsed.seniorMortgageAmount)}</span></div>
+    </div>
+    ${parsed.mortgageList.length>0?`
+    <div class="card">
+      <div class="card-title">근저당권 현황</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:#F8F7F3">
+          <th style="border:0.5px solid #E2E0D8;padding:5px 8px;text-align:center;font-weight:500;color:#5F5E5A">순위</th>
+          <th style="border:0.5px solid #E2E0D8;padding:5px 8px;text-align:left;font-weight:500;color:#5F5E5A">근저당권자</th>
+          <th style="border:0.5px solid #E2E0D8;padding:5px 8px;text-align:right;font-weight:500;color:#5F5E5A">금액</th>
+        </tr></thead>
+        <tbody>${parsed.mortgageList.map(m=>`<tr><td style="border:0.5px solid #E2E0D8;padding:5px 8px;text-align:center">${m.rank}</td><td style="border:0.5px solid #E2E0D8;padding:5px 8px">${m.lender}</td><td style="border:0.5px solid #E2E0D8;padding:5px 8px;text-align:right">${m.amount.toLocaleString()}원</td></tr>`).join('')}</tbody>
+      </table></div>
+      <p style="font-size:11px;font-weight:500;margin-top:8px;color:#854F0B">선순위 근저당 합계: ${formatMoney(parsed.seniorMortgageAmount)}</p>
+    </div>`:''}
+    <div class="card">
+      <div class="card-title">실거래가 분석</div>
+      <div class="row-item"><span class="row-label">법정동코드</span><span class="row-val">${market.lawdCode||'확인 필요'}</span></div>
+      <div class="row-item"><span class="row-label">전체 원자료 / 유사 거래</span><span class="row-val">${market.totalRawCount||0}건 / ${market.transactionCount||0}건</span></div>
+      <div class="row-item"><span class="row-label">상위값</span><span class="row-val muted">${formatMoney(market.upperPrice)} (제외)</span></div>
+      <div class="row-item"><span class="row-label">중위값</span><span class="row-val">${formatMoney(market.middlePrice)}</span></div>
+      <div class="row-item"><span class="row-label">하위값</span><span class="row-val">${formatMoney(market.lowerPrice)}</span></div>
+      <div class="row-item"><span class="row-label">적용 시세</span><span class="row-val blue">${market.appliedPriceType} · ${formatMoney(salesVal)}</span></div>
+      ${parsed.totalFloors?`<div style="font-size:10px;color:#888780;margin-top:5px;padding-top:5px;border-top:0.5px solid #F0EEE6">${parsed.currentFloor}층 ${parsed.currentFloor>=parsed.medianFloor?'≥':'<'} 중위층 ${parsed.medianFloor}층 → ${market.appliedPriceType} 적용</div>`:''}
+      ${market.errorMessage&&!market.apiConnected?`<div style="font-size:10px;color:#854F0B;margin-top:5px">${market.errorMessage}</div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-title">감정평가 3방식 종합</div>
+      <div class="method-row">
+        <span class="pct-badge">70%</span><span style="color:#2C2C2A">거래사례비교법</span>
+        <span style="color:#888780;font-size:10px">실거래 기반</span>
+        <span class="row-val" style="text-align:right">${formatMoney(salesVal)}</span>
+      </div>
+      <div class="method-row">
+        <span class="pct-badge">20%</span><span style="color:#2C2C2A">수익환원법</span>
+        <span style="color:#888780;font-size:10px">전월세 API</span>
+        <span class="row-val" style="text-align:right">${incomeVal?formatMoney(incomeVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
+      </div>
+      <div class="method-row">
+        <span class="pct-badge">10%</span><span style="color:#2C2C2A">원가법</span>
+        <span style="color:#888780;font-size:10px">${costData.fallback?'지역추정':'공시가역산'}</span>
+        <span class="row-val" style="text-align:right">${costVal?formatMoney(costVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#F8F7F3;border-radius:6px;padding:7px 10px;margin-top:6px;font-size:12px;font-weight:500">
+        <span style="color:#2C2C2A">가중평균 시산가액</span>
+        <span style="color:#185FA5">${formatMoney(weighted)}</span>
+      </div>
+      <button class="toggle-link" onclick="toggleDetail(this,'detailBox')">계산식 보기 ▾</button>
+      <div class="detail-box" id="detailBox">
+        <div style="margin-bottom:6px;color:#2C2C2A;font-weight:500;font-size:11px">가중평균 계산식</div>
+        ${salesW!==null?`<div>거래사례: ${formatMoney(salesVal)} × 70% = <span class="detail-strong">${formatMoney(salesW)}</span></div>`:''}
+        ${incomeW!==null?`<div>수익환원: ${formatMoney(incomeVal)} × 20% = <span class="detail-strong">${formatMoney(incomeW)}</span></div>`:`<div style="color:#B0ADA4">수익환원법: 데이터 없음 (가중치 재배분)</div>`}
+        ${costW!==null?`<div>원가법: ${formatMoney(costVal)} × 10% = <span class="detail-strong">${formatMoney(costW)}</span></div>`:`<div style="color:#B0ADA4">원가법: 데이터 없음 (가중치 재배분)</div>`}
+        <div style="margin-top:5px;padding-top:5px;border-top:0.5px solid #D3D1C7" class="detail-result">합계 = ${formatMoney(weighted)}</div>
+        ${rent.medianMonthlyRent?`
+        <div style="margin-top:8px;margin-bottom:3px;color:#2C2C2A;font-weight:500;font-size:11px">수익환원법 산정 내역</div>
+        <div>전월세 거래: ${rent.rentCount}건</div>
+        <div>월 환산 임대료(중위): ${formatMoney(rent.medianMonthlyRent)}</div>
+        <div>연간 총수익: ${formatMoney(Math.round(rent.medianMonthlyRent*12))}</div>
+        <div>공실·비용 차감(18%): −${formatMoney(Math.round(rent.medianMonthlyRent*12*0.18))}</div>
+        <div>연간 순수익: ${formatMoney(rent.annualNetIncome)}</div>
+        <div>Cap Rate: ${(rent.capRate*100).toFixed(1)}%</div>
+        <div class="detail-result">→ 수익환원법: ${formatMoney(incomeVal)}</div>`:''}
+        ${costVal?`
+        <div style="margin-top:8px;margin-bottom:3px;color:#2C2C2A;font-weight:500;font-size:11px">원가법 산정 내역</div>
+        ${costData.officialPrice?`<div>공시가격: ${formatMoney(costData.officialPrice)}</div><div>역산율: ÷ 0.70</div>`:`<div>산정 방법: ${costData.method||'지역별 추정'}</div>`}
+        ${costData.message?`<div style="color:#888780">${costData.message}</div>`:''}
+        <div class="detail-result">→ 원가법: ${formatMoney(costVal)}</div>`:''}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">권리 차감 후 최종 담보가치</div>
+      <div class="row-item"><span class="row-label">감정평가 시산가액</span><span class="row-val">${formatMoney(weighted)}</span></div>
+      ${totalDeposit>0?`<div class="row-item"><span class="row-label">임차보증금</span><span class="row-val">− ${formatMoney(totalDeposit)}</span></div>`:''}
+      ${priorityInfo.amount>0?`<div class="row-item"><span class="row-label">최우선변제금</span><span class="row-val">− ${formatMoney(priorityInfo.amount)}</span></div>`:''}
+      ${parsed.seniorMortgageAmount>0?`<div class="row-item"><span class="row-label">선순위 근저당</span><span class="row-val">− ${formatMoney(parsed.seniorMortgageAmount)}</span></div>`:''}
+      <div class="final-box">${buildFinalFormula(weighted,totalDeposit,priorityInfo.amount,parsed.seniorMortgageAmount,finalVal)}</div>
+      ${priorityInfo.basis&&priorityInfo.basis!=='임차인 없음'?`<div style="font-size:10px;color:#888780;margin-top:6px">${priorityInfo.basis}</div>`:''}
+    </div>
+    <div class="card">
+      <button class="toggle-link" onclick="toggleDetail(this,'noticeBox')" style="font-weight:500;color:#5F5E5A;font-size:11px">유의사항 ▾</button>
+      <div class="detail-box" id="noticeBox">
+        <ul style="list-style:disc;padding-left:14px;line-height:1.9">
+          <li>본 결과는 참고용 추정값이며 금융기관 확정 심사값이 아닙니다.</li>
+          <li>${weightNote}</li>
+          <li>LTV 70%는 담보인정 단계에서 별도 적용합니다.</li>
+          <li>등기부등본만으로 임차인 보증금을 확정할 수 없으므로 입력값을 우선 반영합니다.</li>
+          <li>최우선변제금은 2023년 개정 기준으로 추정합니다.</li>
+          <li>월세 임차인은 보증금 + 월세×100 환산 기준으로 소액임차인 여부를 판단합니다.</li>
+        </ul>
+      </div>
+    </div>`;
+  showResult(html);
+}
+
+function showResult(html){document.getElementById('result').innerHTML=html;}
+function toggleDetail(btn,id){
+  const box=document.getElementById(id);if(!box)return;
+  const open=box.classList.toggle('open');
+  if(open){btn.textContent=btn.textContent.replace('보기','숨기기').replace('▾','▴');}
+  else{btn.textContent=btn.textContent.replace('숨기기','보기').replace('▴','▾');}
+}
+function resetAndRecalculate(){
+  document.getElementById('result').innerHTML='<div class="card"><p style="color:#5F5E5A;font-size:13px">주소를 입력하고 등기부등본을 업로드한 뒤 결과 계산하기를 눌러주세요.</p></div>';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function fillPdfLayout(d){
+  const{address,parsed,market,rent,costData,salesVal,incomeVal,costVal,weighted,totalDeposit,priorityInfo,finalVal}=d;
+  const dt=today();
+  document.getElementById('pdfDate').textContent=dt;
+  document.getElementById('pdfHeaderSub').textContent=`${address} · ${parsed.apartmentName} ${parsed.unitNumber} · 작성일 ${dt}`;
+  document.getElementById('pdfAppraisal').textContent=formatMoney(weighted);
+  document.getElementById('pdfFinal').textContent=formatMoney(finalVal);
+  const infoRows=[['주소',address],['소유자',parsed.owner],['아파트/단지명',parsed.apartmentName],['건물번호',parsed.unitNumber],['전유면적',areaWithPyeong(parsed.exclusiveArea)],['해당 층 / 총 층수',`${parsed.currentFloor||'?'}층 / ${parsed.totalFloors||'?'}층`],['근저당 현황',parsed.mortgageStatus],['선순위 근저당',formatMoney(parsed.seniorMortgageAmount)]];
+  document.getElementById('pdfInfo').innerHTML=infoRows.map(([l,v])=>`<div class="pdf-row"><span class="pdf-lbl">${l}</span><span class="pdf-val">${v}</span></div>`).join('');
+  document.getElementById('pdfMortgage').innerHTML=parsed.mortgageList.length
+    ?`<table class="pdf-table"><thead><tr><th>순위</th><th>근저당권자</th><th>금액</th></tr></thead><tbody>${parsed.mortgageList.map(m=>`<tr><td>${m.rank}</td><td>${m.lender}</td><td style="text-align:right">${m.amount.toLocaleString()}원</td></tr>`).join('')}</tbody></table>`
+    :'<p style="font-size:8px;color:#888780">유효한 근저당권 없음</p>';
+  const mktRows=[['법정동코드',market.lawdCode||'-'],['유사 거래 건수',`${market.transactionCount||0}건`],['상위값 (제외)',formatMoney(market.upperPrice)],['중위값',formatMoney(market.middlePrice)],['하위값',formatMoney(market.lowerPrice)],['적용 시세',`${market.appliedPriceType} · ${formatMoney(salesVal)}`]];
+  document.getElementById('pdfMarket').innerHTML=mktRows.map(([l,v])=>`<div class="pdf-row"><span class="pdf-lbl">${l}</span><span class="pdf-val">${v}</span></div>`).join('');
+  const rentDesc=rent.medianMonthlyRent?`전월세 ${rent.rentCount}건 · 월 ${formatMoney(rent.medianMonthlyRent)} · Cap ${(rent.capRate*100).toFixed(1)}%`:'데이터 없음';
+  const costDesc=costData.officialPrice?`공시가격 ${formatMoney(costData.officialPrice)} ÷ 0.70`:(costData.method||'지역별 추정');
+  document.getElementById('pdfMethods').innerHTML=`<thead><tr><th>평가방법</th><th>시산가액</th><th>가중치</th><th>산정 근거</th></tr></thead><tbody><tr><td>거래사례비교법</td><td>${formatMoney(salesVal)}</td><td>70%</td><td>실거래 API · ${market.usedTransactionCount||0}건</td></tr><tr><td>수익환원법</td><td>${formatMoney(incomeVal)}</td><td>20%</td><td>${rentDesc}</td></tr><tr><td>원가법</td><td>${formatMoney(costVal)}</td><td>10%</td><td>${costDesc}</td></tr><tr class="tot"><td colspan="2">가중평균 시산가액</td><td colspan="2">${formatMoney(weighted)}</td></tr></tbody>`;
+  const dedRows=[['감정평가 시산가액',formatMoney(weighted)]];
+  if(totalDeposit>0)dedRows.push(['임차보증금',formatMoney(totalDeposit)]);
+  if(priorityInfo.amount>0)dedRows.push(['최우선변제금',formatMoney(priorityInfo.amount)]);
+  if(parsed.seniorMortgageAmount>0)dedRows.push(['선순위 근저당',formatMoney(parsed.seniorMortgageAmount)]);
+  document.getElementById('pdfDeduction').innerHTML=dedRows.map(([l,v])=>`<div class="pdf-row"><span class="pdf-lbl">${l}</span><span class="pdf-val">${v}</span></div>`).join('');
+  document.getElementById('pdfFinalFormula').textContent=buildFinalFormula(weighted,totalDeposit,priorityInfo.amount,parsed.seniorMortgageAmount,finalVal);
+}
+
+function savePDF(){
+  const layout=document.getElementById('pdfLayout');
+  layout.style.display='block';
+  html2pdf().set({margin:0,filename:`부동산_담보가치_평가보고서_${today()}.pdf`,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(layout).save().then(()=>{layout.style.display='none';});
+}
+
+document.getElementById('result').innerHTML='<div class="card"><p style="color:#5F5E5A;font-size:13px">주소를 입력하고 등기부등본을 업로드한 뒤 결과 계산하기를 눌러주세요.</p></div>';
+</script>
+</body>
+</html>
