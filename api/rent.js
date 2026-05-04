@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
     if (!serviceKey) {
       return res.status(200).json({
         incomeApproach: null, rentCount: 0,
-        message: '❌ API KEY 없음: Vercel 환경변수 PUBLIC_DATA_API_KEY를 확인하세요.'
+        message: '❌ API KEY 없음'
       });
     }
 
@@ -24,18 +24,27 @@ module.exports = async function handler(req, res) {
 
     const targetArea = Number(area || 0);
     const normalizedAptName = normalizeAptName(aptName);
-    const MIN_DEALS = 3; // 전월세는 3건만 있어도 산정
+    const MIN_DEALS = 3;
 
-    // 단계적 조회: 3개월 → 6개월 → 12개월
-    const stages = [3, 6, 12];
+    // 분기별 조회: 최근 3개월(1분기) → 6개월(2분기) → 12개월(4분기)
+    const quarterStages = [
+      getQuarterMonths(3),   // 1분기 = 1번
+      getQuarterMonths(6),   // 2분기 = 2번
+      getQuarterMonths(12),  // 4분기 = 4번
+    ];
+
     let allRentItems = [];
+    let fetchedQuarters = new Set();
     let usedMonths = 0;
 
-    for (const monthCount of stages) {
-      const newMonths = getRecentMonths(monthCount).slice(usedMonths);
-      const newItems = await fetchMonths(newMonths, lawdCode, serviceKey);
+    for (const quarters of quarterStages) {
+      const newQuarters = quarters.filter(q => !fetchedQuarters.has(q));
+      if (newQuarters.length === 0) continue;
+
+      const newItems = await fetchQuarters(newQuarters, lawdCode, serviceKey);
       allRentItems = [...allRentItems, ...newItems];
-      usedMonths = monthCount;
+      newQuarters.forEach(q => fetchedQuarters.add(q));
+      usedMonths = fetchedQuarters.size * 3;
 
       if (!allRentItems.length) continue;
 
@@ -45,8 +54,7 @@ module.exports = async function handler(req, res) {
 
     if (!allRentItems.length) {
       return res.status(200).json({
-        incomeApproach: null, rentCount: 0,
-        lawdCode,
+        incomeApproach: null, rentCount: 0, lawdCode,
         message: `❌ ${lawdCode} 지역 최근 12개월 전월세 데이터 없음`
       });
     }
@@ -95,7 +103,7 @@ module.exports = async function handler(req, res) {
       convertRate: CONVERT_RATE,
       capRate: CAP_RATE,
       incomeApproach,
-      message: `✅ 성공: 유사 전월세 ${filtered.length}건 기준 산정 (${usedMonths}개월 조회)`
+      message: `✅ 성공: 유사 전월세 ${filtered.length}건 기준 산정`
     });
 
   } catch (error) {
@@ -106,8 +114,20 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function fetchMonths(months, lawdCode, serviceKey) {
-  async function fetchWithTimeout(url, ms = 8000) {
+function getQuarterMonths(totalMonths) {
+  const result = [];
+  const now = new Date();
+  for (let i = 0; i < totalMonths; i += 3) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    result.push(`${yyyy}${mm}`);
+  }
+  return result;
+}
+
+async function fetchQuarters(quarters, lawdCode, serviceKey) {
+  async function fetchWithTimeout(url, ms = 5000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
     try {
@@ -118,21 +138,21 @@ async function fetchMonths(months, lawdCode, serviceKey) {
     }
   }
 
-  const promises = months.map(dealYmd => {
+  const promises = quarters.map(dealYmd => {
     const url =
       'https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent' +
       `?serviceKey=${serviceKey}` +
       `&LAWD_CD=${lawdCode}` +
       `&DEAL_YMD=${dealYmd}` +
       `&numOfRows=100`;
-    return fetchWithTimeout(url, 8000)
+    return fetchWithTimeout(url, 5000)
       .then(xml => {
         const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
         return items.map(item => {
           const name = getXml(item, '아파트') || getXml(item, 'aptNm') || '';
-          const depositText = getXml(item, '보증금액') || getXml(item, 'deposit') || '0';
-          const monthlyText = getXml(item, '월세금액') || getXml(item, 'monthlyRent') || '0';
-          const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr') || '0';
+          const depositText = getXml(item, '보증금액') || '0';
+          const monthlyText = getXml(item, '월세금액') || '0';
+          const areaText = getXml(item, '전용면적') || '0';
           const typeText = getXml(item, '전월세구분') || '';
           const deposit = Number(String(depositText).replace(/[,\s]/g, '')) * 10000;
           const monthlyRent = Number(String(monthlyText).replace(/[,\s]/g, '')) * 10000;
@@ -152,7 +172,6 @@ async function fetchMonths(months, lawdCode, serviceKey) {
 
 function filterItems(allItems, normalizedAptName, targetArea) {
   let filtered = [...allItems];
-
   if (normalizedAptName && normalizedAptName !== '확인필요') {
     const sameApt = filtered.filter(item => {
       const itemName = normalizeAptName(item.name);
@@ -160,30 +179,16 @@ function filterItems(allItems, normalizedAptName, targetArea) {
     });
     if (sameApt.length) filtered = sameApt;
   }
-
   if (targetArea) {
     const areaFiltered = filtered.filter(item => Math.abs(item.area - targetArea) <= 10);
     if (areaFiltered.length) filtered = areaFiltered;
   }
-
   return filtered;
 }
 
 function getXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
   return match ? match[1].trim() : '';
-}
-
-function getRecentMonths(count) {
-  const result = [];
-  const now = new Date();
-  for (let i = 0; i < count; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    result.push(`${yyyy}${mm}`);
-  }
-  return result;
 }
 
 function normalizeAptName(name = '') {
@@ -204,24 +209,16 @@ async function getLawdCode(address = '', serviceKey = '') {
   const url =
     'https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList' +
     `?serviceKey=${serviceKey}` +
-    '&type=json' +
-    '&pageNo=1' +
-    '&numOfRows=1000' +
+    '&type=json&pageNo=1&numOfRows=1000' +
     `&locatadd_nm=${encodeURIComponent(keyword)}`;
 
   let rows = [];
   try {
     const response = await fetch(url);
     const data = await response.json();
-    rows =
-      data?.StanReginCd?.[1]?.row ||
-      data?.response?.body?.items?.item ||
-      data?.items?.item ||
-      [];
+    rows = data?.StanReginCd?.[1]?.row || data?.response?.body?.items?.item || data?.items?.item || [];
     if (!Array.isArray(rows)) rows = rows ? [rows] : [];
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 
   const exact = rows.find(row => {
     const name = row.locatadd_nm || row.locallow_nm || '';
