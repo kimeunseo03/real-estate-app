@@ -1,5 +1,3 @@
-// api/rent.js
-// 전월세 실거래가 API 기반 수익환원법 계산
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
@@ -24,49 +22,26 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const months = getRecentMonths(12); // 전월세는 12개월 기준
+    const targetArea = Number(area || 0);
+    const normalizedAptName = normalizeAptName(aptName);
+    const MIN_DEALS = 3; // 전월세는 3건만 있어도 산정
 
-    async function fetchWithTimeout(url, ms = 8000) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), ms);
-      try {
-        const r = await fetch(url, { signal: controller.signal });
-        return await r.text();
-      } finally {
-        clearTimeout(timer);
-      }
+    // 단계적 조회: 3개월 → 6개월 → 12개월
+    const stages = [3, 6, 12];
+    let allRentItems = [];
+    let usedMonths = 0;
+
+    for (const monthCount of stages) {
+      const newMonths = getRecentMonths(monthCount).slice(usedMonths);
+      const newItems = await fetchMonths(newMonths, lawdCode, serviceKey);
+      allRentItems = [...allRentItems, ...newItems];
+      usedMonths = monthCount;
+
+      if (!allRentItems.length) continue;
+
+      const filtered = filterItems(allRentItems, normalizedAptName, targetArea);
+      if (filtered.length >= MIN_DEALS) break;
     }
-
-    const promises = months.map(dealYmd => {
-      const url =
-        'https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent' +
-        `?serviceKey=${serviceKey}` +
-        `&LAWD_CD=${lawdCode}` +
-        `&DEAL_YMD=${dealYmd}` +
-        `&numOfRows=100`;
-      return fetchWithTimeout(url, 8000)
-        .then(xml => {
-          const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-          return items.map(item => {
-            const name = getXml(item, '아파트') || getXml(item, 'aptNm') || '';
-            const depositText = getXml(item, '보증금액') || getXml(item, 'deposit') || '0';
-            const monthlyText = getXml(item, '월세금액') || getXml(item, 'monthlyRent') || '0';
-            const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr') || '0';
-            const typeText = getXml(item, '전월세구분') || '';
-            const deposit = Number(String(depositText).replace(/[,\s]/g, '')) * 10000;
-            const monthlyRent = Number(String(monthlyText).replace(/[,\s]/g, '')) * 10000;
-            const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
-            if (exclusiveArea > 0) {
-              return { name, deposit, monthlyRent, area: exclusiveArea, type: typeText };
-            }
-            return null;
-          }).filter(Boolean);
-        })
-        .catch(() => []);
-    });
-
-    const results = await Promise.all(promises);
-    const allRentItems = results.flat();
 
     if (!allRentItems.length) {
       return res.status(200).json({
@@ -76,24 +51,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const targetArea = Number(area || 0);
-    const normalizedAptName = normalizeAptName(aptName);
-    let filtered = [...allRentItems];
-
-    // 단지명 필터
-    if (normalizedAptName && normalizedAptName !== '확인필요') {
-      const sameApt = filtered.filter(item => {
-        const itemName = normalizeAptName(item.name);
-        return itemName && (itemName.includes(normalizedAptName) || normalizedAptName.includes(itemName));
-      });
-      if (sameApt.length) filtered = sameApt;
-    }
-
-    // 면적 필터 (±10㎡)
-    if (targetArea) {
-      const areaFiltered = filtered.filter(item => Math.abs(item.area - targetArea) <= 10);
-      if (areaFiltered.length) filtered = areaFiltered;
-    }
+    let filtered = filterItems(allRentItems, normalizedAptName, targetArea);
 
     if (!filtered.length) {
       return res.status(200).json({
@@ -103,16 +61,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 전세 → 월세 환산 (전환율 4%)
     const CONVERT_RATE = 0.04;
     const CAP_RATE = 0.045;
 
     const monthlyRentEquivalents = filtered.map(d => {
       if (d.type === '전세' || d.monthlyRent === 0) {
-        // 전세: 보증금 × 전환율 / 12
         return (d.deposit * CONVERT_RATE) / 12;
       } else {
-        // 월세: 보증금 전환분 + 월세
         return (d.deposit * CONVERT_RATE) / 12 + d.monthlyRent;
       }
     }).filter(v => v > 0).sort((a, b) => a - b);
@@ -126,7 +81,7 @@ module.exports = async function handler(req, res) {
 
     const medianMonthlyRent = monthlyRentEquivalents[Math.floor(monthlyRentEquivalents.length / 2)];
     const annualGrossIncome = medianMonthlyRent * 12;
-    const annualNetIncome = Math.round(annualGrossIncome * 0.82); // 공실·관리비 18% 차감
+    const annualNetIncome = Math.round(annualGrossIncome * 0.82);
     const incomeApproach = Math.round(annualNetIncome / CAP_RATE);
 
     return res.status(200).json({
@@ -140,10 +95,7 @@ module.exports = async function handler(req, res) {
       convertRate: CONVERT_RATE,
       capRate: CAP_RATE,
       incomeApproach,
-      rawDeals: filtered.slice(0, 5).map(d => ({
-        area: d.area, deposit: d.deposit, monthlyRent: d.monthlyRent, type: d.type
-      })),
-      message: `✅ 성공: 유사 전월세 ${filtered.length}건 기준 산정`
+      message: `✅ 성공: 유사 전월세 ${filtered.length}건 기준 산정 (${usedMonths}개월 조회)`
     });
 
   } catch (error) {
@@ -153,6 +105,69 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+async function fetchMonths(months, lawdCode, serviceKey) {
+  async function fetchWithTimeout(url, ms = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: controller.signal });
+      return await r.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const promises = months.map(dealYmd => {
+    const url =
+      'https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent' +
+      `?serviceKey=${serviceKey}` +
+      `&LAWD_CD=${lawdCode}` +
+      `&DEAL_YMD=${dealYmd}` +
+      `&numOfRows=100`;
+    return fetchWithTimeout(url, 8000)
+      .then(xml => {
+        const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+        return items.map(item => {
+          const name = getXml(item, '아파트') || getXml(item, 'aptNm') || '';
+          const depositText = getXml(item, '보증금액') || getXml(item, 'deposit') || '0';
+          const monthlyText = getXml(item, '월세금액') || getXml(item, 'monthlyRent') || '0';
+          const areaText = getXml(item, '전용면적') || getXml(item, 'excluUseAr') || '0';
+          const typeText = getXml(item, '전월세구분') || '';
+          const deposit = Number(String(depositText).replace(/[,\s]/g, '')) * 10000;
+          const monthlyRent = Number(String(monthlyText).replace(/[,\s]/g, '')) * 10000;
+          const exclusiveArea = Number(String(areaText).replace(/,/g, '').trim());
+          if (exclusiveArea > 0) {
+            return { name, deposit, monthlyRent, area: exclusiveArea, type: typeText };
+          }
+          return null;
+        }).filter(Boolean);
+      })
+      .catch(() => []);
+  });
+
+  const results = await Promise.all(promises);
+  return results.flat();
+}
+
+function filterItems(allItems, normalizedAptName, targetArea) {
+  let filtered = [...allItems];
+
+  if (normalizedAptName && normalizedAptName !== '확인필요') {
+    const sameApt = filtered.filter(item => {
+      const itemName = normalizeAptName(item.name);
+      return itemName && (itemName.includes(normalizedAptName) || normalizedAptName.includes(itemName));
+    });
+    if (sameApt.length) filtered = sameApt;
+  }
+
+  if (targetArea) {
+    const areaFiltered = filtered.filter(item => Math.abs(item.area - targetArea) <= 10);
+    if (areaFiltered.length) filtered = areaFiltered;
+  }
+
+  return filtered;
+}
 
 function getXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
@@ -186,7 +201,6 @@ async function getLawdCode(address = '', serviceKey = '') {
   if (!sido || !sigungu) return null;
 
   const keyword = `${sido} ${sigungu}`;
-
   const url =
     'https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList' +
     `?serviceKey=${serviceKey}` +
