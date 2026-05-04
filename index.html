@@ -310,6 +310,22 @@ async function getCostAnalysis(address,parsed){
   }catch(e){return{costApproach:null,officialPrice:null,method:'연결 실패',message:e.message,fallback:true};}
 }
 
+  function getLtvRate(address) {
+  const addr = String(address);
+  // 2025.10.16 기준 규제지역: 서울 전역 + 경기 12개 지역
+  const regulated = [
+    '서울',
+    '과천시','광명시',
+    '성남시','분당구','수정구','중원구',
+    '수원시','영통구','장안구','팔달구',
+    '안양시','동안구',
+    '용인시','수지구',
+    '의왕시','하남시'
+  ];
+  const isRegulated = regulated.some(v => addr.includes(v));
+  return isRegulated ? 0.50 : 0.70;
+}
+  
 function calcPriorityRepayment(address,detailType,jeonseDeposit,monthlyDeposit,monthlyRent,leaseDeposit){
   const monthlyConverted=monthlyDeposit+(monthlyRent*100);
   const effectiveDeposit=Math.max(jeonseDeposit,monthlyConverted,leaseDeposit);
@@ -343,12 +359,15 @@ function calcWeighted(sales,income,cost){
   if(sc!==null)return Math.round(sales*0.7+sc*0.3);
   return Math.round(sales);
 }
-function buildFinalFormula(w,dep,pri,mort,final){
-  const deds=[];
+function buildFinalFormula(w, ltv, ltvApplied, dep, pri, mort, final) {
+  const deds = [];
   if(dep>0)deds.push(formatMoney(dep));
   if(pri>0)deds.push(formatMoney(pri));
   if(mort>0)deds.push(formatMoney(mort));
-  return deds.length?`최종 담보가치 = ${formatMoney(w)} − ${deds.join(' − ')} = ${formatMoney(final)}`:`최종 담보가치 = ${formatMoney(w)} (차감 항목 없음)`;
+  const ltvStr = `${formatMoney(w)} × ${Math.round(ltv*100)}% = ${formatMoney(ltvApplied)}`;
+  return deds.length
+    ?`${ltvStr} − ${deds.join(' − ')} = ${formatMoney(final)}`
+    :`${ltvStr} (차감 항목 없음)`;
 }
 
 async function calculate(){
@@ -367,12 +386,16 @@ async function calculate(){
   const priorityInfo=tenantType==='없음'?{amount:0,basis:'임차인 없음'}:calcPriorityRepayment(address,parsed.detailType,jD,mD,mR,lD);
   const salesVal=market.investigationPrice,incomeVal=rent.incomeApproach,costVal=costData.costApproach;
   const weighted=calcWeighted(salesVal,incomeVal,costVal);
-  const finalVal=Number.isFinite(weighted)?weighted-totalDeposit-priorityInfo.amount-parsed.seniorMortgageAmount:null;
+  const ltvRate = getLtvRate(address);
+  const ltvApplied = Number.isFinite(weighted) ? Math.round(weighted * ltvRate) : null;
+  const finalVal = Number.isFinite(ltvApplied)
+  ? ltvApplied - totalDeposit - priorityInfo.amount - parsed.seniorMortgageAmount
+  : null;
   let weightNote='거래사례 70% / 수익환원 20% / 원가법 10%';
   if(!incomeVal&&!costVal)weightNote='거래사례 100% (다른 방식 데이터 없음)';
   else if(!incomeVal)weightNote='거래사례 70% / 원가법 30% (전월세 데이터 없음)';
   else if(!costVal)weightNote='거래사례 70% / 수익환원 30% (원가법 데이터 없음)';
-  lastCalcData={address,parsed,market,rent,costData,salesVal,incomeVal,costVal,weighted,totalDeposit,priorityInfo,finalVal,weightNote};
+  lastCalcData = { address, parsed, market, rent, costData, salesVal, incomeVal, costVal, weighted, ltvRate, ltvApplied, totalDeposit, priorityInfo, finalVal, weightNote };
   renderResult(lastCalcData);
   fillPdfLayout(lastCalcData);
 }
@@ -388,6 +411,7 @@ function renderResult(d){
         <div style="font-size:10px;color:#888780;margin-bottom:4px">감정평가 시산가액</div>
         <div style="font-size:18px;font-weight:600;color:#2C2C2A">${formatMoney(weighted)}</div>
         <div style="font-size:9px;color:#888780;margin-top:2px">${weightNote}</div>
+        <div style="font-size:9px;color:#888780;margin-top:1px">LTV ${Math.round(d.ltvRate*100)}% 적용 → ${formatMoney(d.ltvApplied)}</div>
       </div>
       <div style="background:#185FA5;border-radius:8px;padding:12px 14px">
         <div style="font-size:10px;color:#B5D4F4;margin-bottom:4px">최종 담보가치</div>
@@ -487,10 +511,14 @@ function renderResult(d){
     <div class="card">
       <div class="card-title">권리 차감 후 최종 담보가치</div>
       <div class="row-item"><span class="row-label">감정평가 시산가액</span><span class="row-val">${formatMoney(weighted)}</span></div>
+      <div class="row-item">
+  <span class="row-label">LTV ${Math.round(d.ltvRate*100)}% 적용</span>
+  <span class="row-val blue">→ ${formatMoney(d.ltvApplied)}</span>
+</div>
       ${totalDeposit>0?`<div class="row-item"><span class="row-label">임차보증금</span><span class="row-val">− ${formatMoney(totalDeposit)}</span></div>`:''}
       ${priorityInfo.amount>0?`<div class="row-item"><span class="row-label">최우선변제금</span><span class="row-val">− ${formatMoney(priorityInfo.amount)}</span></div>`:''}
       ${parsed.seniorMortgageAmount>0?`<div class="row-item"><span class="row-label">선순위 근저당</span><span class="row-val">− ${formatMoney(parsed.seniorMortgageAmount)}</span></div>`:''}
-      <div class="final-box">${buildFinalFormula(weighted,totalDeposit,priorityInfo.amount,parsed.seniorMortgageAmount,finalVal)}</div>
+      <div class="final-box">${buildFinalFormulaweighted, ltvRate, ltvApplied, totalDeposit, priorityInfo.amount, parsed.seniorMortgageAmount, finalVal)</div>
       ${priorityInfo.basis&&priorityInfo.basis!=='임차인 없음'?`<div style="font-size:10px;color:#888780;margin-top:6px">${priorityInfo.basis}</div>`:''}
     </div>
     <div class="card">
