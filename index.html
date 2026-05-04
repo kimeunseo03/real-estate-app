@@ -518,7 +518,7 @@ function renderResult(d){
       ${totalDeposit>0?`<div class="row-item"><span class="row-label">임차보증금</span><span class="row-val">− ${formatMoney(totalDeposit)}</span></div>`:''}
       ${priorityInfo.amount>0?`<div class="row-item"><span class="row-label">최우선변제금</span><span class="row-val">− ${formatMoney(priorityInfo.amount)}</span></div>`:''}
       ${parsed.seniorMortgageAmount>0?`<div class="row-item"><span class="row-label">선순위 근저당</span><span class="row-val">− ${formatMoney(parsed.seniorMortgageAmount)}</span></div>`:''}
-      <div class="final-box">${buildFinalFormula(weighted, d.ltvRate, d.ltvApplied, totalDeposit, priorityInfo.amount, parsed.seniorMortgageAmount, finalVal)</div>
+      <div class="final-box">${buildFinalFormula(weighted, ltvRate, ltvApplied, totalDeposit, priorityInfo.amount, parsed.seniorMortgageAmount, finalVal)}</div>
       ${priorityInfo.basis&&priorityInfo.basis!=='임차인 없음'?`<div style="font-size:10px;color:#888780;margin-top:6px">${priorityInfo.basis}</div>`:''}
     </div>
     <div class="card">
