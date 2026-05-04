@@ -518,7 +518,7 @@ function renderResult(d){
       ${totalDeposit>0?`<div class="row-item"><span class="row-label">임차보증금</span><span class="row-val">− ${formatMoney(totalDeposit)}</span></div>`:''}
       ${priorityInfo.amount>0?`<div class="row-item"><span class="row-label">최우선변제금</span><span class="row-val">− ${formatMoney(priorityInfo.amount)}</span></div>`:''}
       ${parsed.seniorMortgageAmount>0?`<div class="row-item"><span class="row-label">선순위 근저당</span><span class="row-val">− ${formatMoney(parsed.seniorMortgageAmount)}</span></div>`:''}
-      <div class="final-box">${buildFinalFormulaweighted, ltvRate, ltvApplied, totalDeposit, priorityInfo.amount, parsed.seniorMortgageAmount, finalVal)</div>
+      <div class="final-box">${buildFinalFormula(weighted, ltvRate, ltvApplied, totalDeposit, priorityInfo.amount, parsed.seniorMortgageAmount, finalVal)</div>
       ${priorityInfo.basis&&priorityInfo.basis!=='임차인 없음'?`<div style="font-size:10px;color:#888780;margin-top:6px">${priorityInfo.basis}</div>`:''}
     </div>
     <div class="card">
@@ -527,7 +527,7 @@ function renderResult(d){
         <ul style="list-style:disc;padding-left:14px;line-height:1.9">
           <li>본 결과는 참고용 추정값이며 금융기관 확정 심사값이 아닙니다.</li>
           <li>${weightNote}</li>
-          <li>LTV 70%는 담보인정 단계에서 별도 적용합니다.</li>
+          <li>LTV ${Math.round(d.ltvRate*100)}%는 담보인정 단계에서 별도 적용합니다.</li>
           <li>등기부등본만으로 임차인 보증금을 확정할 수 없으므로 입력값을 우선 반영합니다.</li>
           <li>최우선변제금은 2023년 개정 기준으로 추정합니다.</li>
           <li>월세 임차인은 보증금 + 월세×100 환산 기준으로 소액임차인 여부를 판단합니다.</li>
@@ -571,8 +571,16 @@ function fillPdfLayout(d){
   if(priorityInfo.amount>0)dedRows.push(['최우선변제금',formatMoney(priorityInfo.amount)]);
   if(parsed.seniorMortgageAmount>0)dedRows.push(['선순위 근저당',formatMoney(parsed.seniorMortgageAmount)]);
   document.getElementById('pdfDeduction').innerHTML=dedRows.map(([l,v])=>`<div class="pdf-row"><span class="pdf-lbl">${l}</span><span class="pdf-val">${v}</span></div>`).join('');
-  document.getElementById('pdfFinalFormula').textContent=buildFinalFormula(weighted,totalDeposit,priorityInfo.amount,parsed.seniorMortgageAmount,finalVal);
-}
+  document.getElementById('pdfFinalFormula').textContent=
+  buildFinalFormula(
+    weighted,
+    d.ltvRate,
+    d.ltvApplied,
+    totalDeposit,
+    priorityInfo.amount,
+    parsed.seniorMortgageAmount,
+    finalVal
+  );}
 
 function savePDF(){
   const layout=document.getElementById('pdfLayout');
