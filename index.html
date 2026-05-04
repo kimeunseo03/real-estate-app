@@ -375,7 +375,40 @@ async function calculate(){
   if(!address){showResult('<div class="card"><p style="color:#854F0B;font-weight:500">주소를 입력해주세요.</p></div>');return;}
   if(!registryText){showResult('<div class="card"><p style="color:#854F0B;font-weight:500">등기부등본을 업로드해주세요.</p></div>');return;}
   const parsed=parseRegistry(registryText);
-  showResult('<div class="card"><p style="color:#5F5E5A;font-size:13px">실거래가·전월세·공시가격 API 조회 중...</p></div>');
+  showResult(`
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:16px;height:16px;border:2px solid #E2E0D8;border-top-color:#185FA5;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+      <p style="color:#2C2C2A;font-size:13px;font-weight:500">담보가치 계산 중...</p>
+    </div>
+    <div id="loadStep1" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #F0EEE6;font-size:11px;color:#888780">
+      <span id="loadStep1Icon">⏳</span> 매매 실거래가 조회 중 (최대 24개월)
+    </div>
+    <div id="loadStep2" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #F0EEE6;font-size:11px;color:#B0ADA4">
+      <span id="loadStep2Icon">○</span> 전월세 실거래가 조회 중 (최대 12개월)
+    </div>
+    <div id="loadStep3" style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:11px;color:#B0ADA4">
+      <span id="loadStep3Icon">○</span> 원가법 산정 중
+    </div>
+    <p style="font-size:10px;color:#B0ADA4;margin-top:10px">공공데이터포털 API 응답 속도에 따라 30초~1분 소요될 수 있습니다.</p>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+`);
+
+// 단계별 로딩 표시 업데이트
+setTimeout(() => {
+  const s2 = document.getElementById('loadStep2');
+  const s2i = document.getElementById('loadStep2Icon');
+  if (s2) { s2.style.color = '#888780'; if(s2i) s2i.textContent = '⏳'; }
+}, 3000);
+setTimeout(() => {
+  const s1 = document.getElementById('loadStep1');
+  const s1i = document.getElementById('loadStep1Icon');
+  if (s1) { s1.style.color = '#3B6D11'; if(s1i) s1i.textContent = '✅'; }
+  const s3 = document.getElementById('loadStep3');
+  const s3i = document.getElementById('loadStep3Icon');
+  if (s3) { s3.style.color = '#888780'; if(s3i) s3i.textContent = '⏳'; }
+}, 8000);
   const[market,rent,costData]=await Promise.all([getMarketAnalysis(address,parsed),getRentAnalysis(address,parsed),getCostAnalysis(address,parsed)]);
   const tenantType=document.getElementById('tenant').value;
   const jD=parseMoney(document.getElementById('jeonseDeposit').value);
