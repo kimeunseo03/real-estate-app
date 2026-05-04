@@ -527,7 +527,7 @@ function renderResult(d){
         <ul style="list-style:disc;padding-left:14px;line-height:1.9">
           <li>본 결과는 참고용 추정값이며 금융기관 확정 심사값이 아닙니다.</li>
           <li>${weightNote}</li>
-          <li>LTV ${Math.round(d.ltvRate*100)}%는 담보인정 단계에서 별도 적용합니다.</li>
+          <li>LTV ${Math.round(d.ltvRate*100)}%를 적용한 후 권리 차감하여 산정됩니다.</li>
           <li>등기부등본만으로 임차인 보증금을 확정할 수 없으므로 입력값을 우선 반영합니다.</li>
           <li>최우선변제금은 2023년 개정 기준으로 추정합니다.</li>
           <li>월세 임차인은 보증금 + 월세×100 환산 기준으로 소액임차인 여부를 판단합니다.</li>
