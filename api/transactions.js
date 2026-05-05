@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ error: 'POST만 허용됩니다.', message: 'POST만 허용됩니다.' });
     }
 
-    const { address, area, currentFloor, totalFloors, aptName } = req.body || {};
+    const { lawdCode, area, currentFloor, totalFloors, aptName } = req.body || {};
     const serviceKey = process.env.PUBLIC_DATA_API_KEY;
 
     if (!serviceKey) {
@@ -14,7 +14,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const lawdCode = await getLawdCode(address, serviceKey);
+    if (!lawdCode) {
+  return res.status(200).json({
+    investigationPrice: null,
+    transactionCount: 0,
+    message: '❌ lawdCode 없음'
+  });
+}
     if (!lawdCode) {
       return res.status(200).json({
         investigationPrice: null, transactionCount: 0,
