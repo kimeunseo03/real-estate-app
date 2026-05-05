@@ -290,6 +290,9 @@ async function fetchApi(endpoint,body){
   const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return await r.json();
 }
+// =======================
+// 법정동코드
+// =======================
 async function getLawdCodeAnalysis(address) {
   try {
     const d = await fetchApi('/api/lawdcode', { address });
@@ -306,64 +309,21 @@ async function getLawdCodeAnalysis(address) {
   }
 }
 
-async function getRentAnalysis(lawdCode, address, parsed) {
+// =======================
+// 실거래가
+// =======================
+async function getMarketAnalysis(lawdCode, address, parsed) {
   try {
-    const d = await fetchApi('/api/rent', {
+    const d = await fetchApi('/api/transactions', {
       lawdCode,
       address,
       aptName: parsed.apartmentName === '확인 필요' ? '' : parsed.apartmentName,
+      unitNumber: parsed.unitNumber,
+      exclusiveArea: parsed.exclusiveArea,
+      currentFloor: parsed.currentFloor,
+      totalFloors: parsed.totalFloors,
       area: parsed.areaNumber
     });
-
-    return {
-      rentCount: d.rentCount || 0,
-      medianMonthlyRent: d.medianMonthlyRent || null,
-      annualNetIncome: d.annualNetIncome || null,
-      convertRate: d.convertRate || 0.04,
-      capRate: d.capRate || 0.045,
-      incomeApproach: d.incomeApproach || null,
-      message: d.message || ''
-    };
-  } catch (e) {
-    return {
-      rentCount: 0,
-      medianMonthlyRent: null,
-      annualNetIncome: null,
-      convertRate: 0.04,
-      capRate: 0.045,
-      incomeApproach: null,
-      message: e.message
-    };
-  }
-}
-
-async function getCostAnalysis(address, parsed) {
-  try {
-    const d = await fetchApi('/api/cost', {
-      address,
-      aptName: parsed.apartmentName === '확인 필요' ? '' : parsed.apartmentName,
-      area: parsed.areaNumber,
-      currentFloor: parsed.currentFloor,
-      unitNumber: parsed.unitNumber
-    });
-
-    return {
-      costApproach: d.costApproach || null,
-      officialPrice: d.officialPrice || null,
-      method: d.method || '',
-      message: d.message || '',
-      fallback: d.fallback || false
-    };
-  } catch (e) {
-    return {
-      costApproach: null,
-      officialPrice: null,
-      method: '연결 실패',
-      message: e.message,
-      fallback: true
-    };
-  }
-}
 
     if (!Number(d.investigationPrice)) throw new Error(d.message || '실거래가 없음');
 
@@ -395,6 +355,71 @@ async function getCostAnalysis(address, parsed) {
       investigationPrice: null,
       apiConnected: false,
       errorMessage: e.message
+    };
+  }
+}
+
+// =======================
+// 전월세 (수익환원)
+// =======================
+async function getRentAnalysis(lawdCode, address, parsed) {
+  try {
+    const d = await fetchApi('/api/rent', {
+      lawdCode,
+      address,
+      aptName: parsed.apartmentName === '확인 필요' ? '' : parsed.apartmentName,
+      area: parsed.areaNumber
+    });
+
+    return {
+      rentCount: d.rentCount || 0,
+      medianMonthlyRent: d.medianMonthlyRent || null,
+      annualNetIncome: d.annualNetIncome || null,
+      convertRate: d.convertRate || 0.04,
+      capRate: d.capRate || 0.045,
+      incomeApproach: d.incomeApproach || null,
+      message: d.message || ''
+    };
+  } catch (e) {
+    return {
+      rentCount: 0,
+      medianMonthlyRent: null,
+      annualNetIncome: null,
+      convertRate: 0.04,
+      capRate: 0.045,
+      incomeApproach: null,
+      message: e.message
+    };
+  }
+}
+
+// =======================
+// 원가법
+// =======================
+async function getCostAnalysis(address, parsed) {
+  try {
+    const d = await fetchApi('/api/cost', {
+      address,
+      aptName: parsed.apartmentName === '확인 필요' ? '' : parsed.apartmentName,
+      area: parsed.areaNumber,
+      currentFloor: parsed.currentFloor,
+      unitNumber: parsed.unitNumber
+    });
+
+    return {
+      costApproach: d.costApproach || null,
+      officialPrice: d.officialPrice || null,
+      method: d.method || '',
+      message: d.message || '',
+      fallback: d.fallback || false
+    };
+  } catch (e) {
+    return {
+      costApproach: null,
+      officialPrice: null,
+      method: '연결 실패',
+      message: e.message,
+      fallback: true
     };
   }
 }
@@ -510,11 +535,24 @@ if (!lawd.lawdCode) {
   return;
 }
 
+const lawd = await getLawdCodeAnalysis(address);
+
+if (!lawd.lawdCode) {
+  showResult(`
+    <div class="card">
+      <p style="color:#854F0B;font-weight:500">법정동코드 조회 실패</p>
+      <p style="font-size:11px;color:#888780;margin-top:6px">${lawd.message || '주소를 확인해주세요.'}</p>
+    </div>
+  `);
+  return;
+}
+
 const [market, rent, costData] = await Promise.all([
   getMarketAnalysis(lawd.lawdCode, address, parsed),
   getRentAnalysis(lawd.lawdCode, address, parsed),
   getCostAnalysis(address, parsed)
 ]);
+  
   const tenantType=document.getElementById('tenant').value;
   const jD=parseMoney(document.getElementById('jeonseDeposit').value);
   const mD=parseMoney(document.getElementById('monthlyDeposit').value);
