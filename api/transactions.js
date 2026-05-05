@@ -21,12 +21,6 @@ module.exports = async function handler(req, res) {
     message: '❌ lawdCode 없음'
   });
 }
-    if (!lawdCode) {
-      return res.status(200).json({
-        investigationPrice: null, transactionCount: 0,
-        message: `❌ 법정동코드 매칭 실패: ${address}`
-      });
-    }
 
     const targetArea = Number(area || 0);
     const normalizedAptName = normalizeAptName(aptName);
@@ -188,47 +182,4 @@ function normalizeAptName(name = '') {
     .replace(/\s/g, '')
     .replace(/아파트|APT|apt|단지|제\d+동|제\d+호/g, '')
     .trim();
-}
-
-async function getLawdCode(address = '', serviceKey = '') {
-  const text = String(address || '').replace(/\s+/g, ' ').trim();
-  const parts = text.split(' ');
-  const sido = parts[0] || '';
-  const sigungu = parts[1] || '';
-  if (!sido || !sigungu) return null;
-
-  const keyword = `${sido} ${sigungu}`;
-  const url =
-    'https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList' +
-    `?serviceKey=${serviceKey}` +
-    '&type=json&pageNo=1&numOfRows=1000' +
-    `&locatadd_nm=${encodeURIComponent(keyword)}`;
-
-  let rows = [];
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    rows = data?.StanReginCd?.[1]?.row || data?.response?.body?.items?.item || data?.items?.item || [];
-    if (!Array.isArray(rows)) rows = rows ? [rows] : [];
-  } catch (e) { return null; }
-
-  const exact = rows.find(row => {
-    const name = row.locatadd_nm || row.locallow_nm || '';
-    const code = String(row.region_cd || row.regionCd || '');
-    return name.includes(keyword) && code.length >= 5 && code.endsWith('00000');
-  });
-  if (exact) return String(exact.region_cd || exact.regionCd).slice(0, 5);
-
-  const fallback = rows.find(row => {
-    const name = row.locatadd_nm || row.locallow_nm || '';
-    const code = String(row.region_cd || row.regionCd || '');
-    return name.includes(sigungu) && code.length >= 5 && code.endsWith('00000');
-  });
-  if (fallback) return String(fallback.region_cd || fallback.regionCd).slice(0, 5);
-
-  const loose = rows.find(row => {
-    const name = row.locatadd_nm || row.locallow_nm || '';
-    return name.includes(sigungu);
-  });
-  return loose ? String(loose.region_cd || loose.regionCd).slice(0, 5) : null;
 }
