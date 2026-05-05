@@ -484,7 +484,6 @@ function buildFinalFormula(w, ltv, ltvApplied, dep, pri, mort, final) {
     :`${ltvStr} (차감 항목 없음)`;
 }
 
-<script>
 async function calculate(){
   const address = document.getElementById('address').value.trim();
 
@@ -588,7 +587,6 @@ async function calculate(){
   renderResult(lastCalcData);
   fillPdfLayout(lastCalcData);
 }
-</script>
 
 function renderResult(d){
   const {
