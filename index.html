@@ -399,6 +399,24 @@ async function getRentAnalysis(lawdCode, address, parsed) {
 }
 
 // =======================
+// 건물 정보 조회
+// =======================
+async function getBuildingAnalysis(address, parsed) {
+  try {
+    const d = await fetchApi('/api/building', {
+      address,
+      aptName: parsed.apartmentName,
+      unitNumber: parsed.unitNumber
+    });
+
+    return d.buildingInfo || null;
+
+  } catch (e) {
+    return null;
+  }
+}
+
+// =======================
 // 원가법
 // =======================
 async function getCostAnalysis(address, parsed) {
@@ -417,6 +435,7 @@ async function getCostAnalysis(address, parsed) {
       message: d.message || '',
       fallback: d.fallback || false
     };
+
   } catch (e) {
     return {
       costApproach: null,
@@ -430,6 +449,7 @@ async function getCostAnalysis(address, parsed) {
 
 function getLtvRate(address) {
   const addr = String(address);
+
   const regulated = [
     '서울',
     '과천시','광명시',
@@ -439,7 +459,9 @@ function getLtvRate(address) {
     '용인시','수지구',
     '의왕시','하남시'
   ];
+
   const isRegulated = regulated.some(v => addr.includes(v));
+
   return isRegulated ? 0.50 : 0.70;
 }
   
