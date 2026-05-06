@@ -402,18 +402,13 @@ async function getRentAnalysis(lawdCode, address, parsed) {
 // 원가법
 // =======================
 async function getCostAnalysis(address, parsed) {
- try {
-    const d = await fetchApi('/api/building', {
+  try {
+    const d = await fetchApi('/api/cost', {
       address,
+      area: parsed.areaNumber,
       aptName: parsed.apartmentName,
       unitNumber: parsed.unitNumber
     });
-
-    return d.buildingInfo || null;
-  } catch (e) {
-    return null;
-  }
-}
 
     return {
       costApproach: d.costApproach || null,
@@ -433,9 +428,8 @@ async function getCostAnalysis(address, parsed) {
   }
 }
 
-  function getLtvRate(address) {
+function getLtvRate(address) {
   const addr = String(address);
-  // 2025.10.16 기준 규제지역: 서울 전역 + 경기 12개 지역
   const regulated = [
     '서울',
     '과천시','광명시',
@@ -740,7 +734,7 @@ function renderResult(d){
       </div>
       <div class="method-row">
         <span class="pct-badge">10%</span><span style="color:#2C2C2A">원가법10%</span>
-        <span style="color:#888780;font-size:10px">${costData.fallback?'지역추정':'공시가역산'}</span>
+        <span style="color:#888780;font-size:10px">${costData?.fallback?'지역추정':'공시가역산'}</span>
         <span class="row-val" style="text-align:right">${costVal?formatMoney(costVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;background:#F8F7F3;border-radius:6px;padding:7px 10px;margin-top:6px;font-size:12px;font-weight:500">
@@ -765,7 +759,7 @@ function renderResult(d){
         <div class="detail-result">→ 수익환원법: ${formatMoney(incomeVal)}</div>`:''}
         ${costVal?`
         <div style="margin-top:8px;margin-bottom:3px;color:#2C2C2A;font-weight:500;font-size:11px">원가법 산정 내역</div>
-        ${costData.officialPrice?`<div>공시가격: ${formatMoney(costData.officialPrice)}</div><div>역산율: ÷ 0.70</div>`:`<div>산정 방법: ${costData.method||'지역별 추정'}</div>`}
+        ${costData?.officialPrice?`<div>공시가격: ${formatMoney(costData.officialPrice)}</div><div>역산율: ÷ 0.70</div>`:`<div>산정 방법: ${costData.method||'지역별 추정'}</div>`}
         ${costData.message?`<div style="color:#888780">${costData.message}</div>`:''}
         <div class="detail-result">→ 원가법: ${formatMoney(costVal)}</div>`:''}
       </div>
