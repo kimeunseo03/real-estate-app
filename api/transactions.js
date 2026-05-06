@@ -37,7 +37,8 @@ module.exports = async function handler(req, res) {
 
     const monthStages = [
       getRecentMonths(6),
-      getRecentMonths(12)
+      getRecentMonths(12),
+      getRecentMonths(24)
     ];
 
     let allItems = [];
