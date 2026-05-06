@@ -469,14 +469,28 @@ function calcPriorityRepayment(address,detailType,jeonseDeposit,monthlyDeposit,m
       :`소액임차인 미해당 (보증금 ${formatKorean(effectiveDeposit)} > 기준 ${formatKorean(limit)}, ${region})`
   };
 }
-function calcWeighted(sales,income,cost){
-  if(!Number.isFinite(sales))return null;
-  const si=Number.isFinite(income)?income:null,sc=Number.isFinite(cost)?cost:null;
-  if(si!==null&&sc!==null)return Math.round(sales*0.7+si*0.2+sc*0.1);
-  if(si!==null)return Math.round(sales*0.7+si*0.3);
-  if(sc!==null)return Math.round(sales*0.7+sc*0.3);
+function calcWeighted(sales, income, cost){
+  if(!Number.isFinite(sales)) return null;
+
+  const si = Number.isFinite(income) ? income : null;
+  const sc = Number.isFinite(cost) ? cost : null;
+
+  // 아파트 기준: 거래사례비교법 중심
+  if(si !== null && sc !== null) {
+    return Math.round(sales * 0.85 + si * 0.05 + sc * 0.10);
+  }
+
+  if(si !== null) {
+    return Math.round(sales * 0.90 + si * 0.10);
+  }
+
+  if(sc !== null) {
+    return Math.round(sales * 0.90 + sc * 0.10);
+  }
+
   return Math.round(sales);
 }
+  
 function buildFinalFormula(w, ltv, ltvApplied, dep, pri, mort, final) {
   const deds = [];
   if(dep>0)deds.push(formatMoney(dep));
@@ -565,10 +579,15 @@ async function calculate(){
     ? Math.max(0, ltvApplied - totalDeposit - priorityInfo.amount - parsed.seniorMortgageAmount)
     : null;
 
-  let weightNote = '거래사례 70% / 수익환원 20% / 원가법 10%';
-  if (!incomeVal && !costVal) weightNote = '거래사례 100% (다른 방식 데이터 없음)';
-  else if (!incomeVal) weightNote = '거래사례 70% / 원가법 30% (전월세 데이터 없음)';
-  else if (!costVal) weightNote = '거래사례 70% / 수익환원 30% (원가법 데이터 없음)';
+  let weightNote = '아파트 기준: 거래사례 85% / 수익환원 5% / 원가법 10%';
+
+if (!incomeVal && !costVal) {
+  weightNote = '아파트 기준: 거래사례 100% (보조 방식 데이터 없음)';
+} else if (!incomeVal) {
+  weightNote = '아파트 기준: 거래사례 90% / 원가법 10% (전월세 데이터 없음)';
+} else if (!costVal) {
+  weightNote = '아파트 기준: 거래사례 90% / 수익환원 10% (원가법 데이터 없음)';
+}
 
   lastCalcData = {
     address,
@@ -700,12 +719,12 @@ function renderResult(d){
     <div class="card">
       <div class="card-title">감정평가 3방식 가중평균</div>
       <div class="method-row">
-        <span class="pct-badge">70%</span><span style="color:#2C2C2A">거래사례비교법70%</span>
+        <span class="pct-badge">70%</span><span style="color:#2C2C2A">거래사례비교법85%</span>
         <span style="color:#888780;font-size:10px">실거래 기반</span>
         <span class="row-val" style="text-align:right">${formatMoney(salesVal)}</span>
       </div>
       <div class="method-row">
-        <span class="pct-badge">20%</span><span style="color:#2C2C2A">수익환원법20%</span>
+        <span class="pct-badge">20%</span><span style="color:#2C2C2A">수익환원법5%</span>
         <span style="color:#888780;font-size:10px">전월세 API</span>
         <span class="row-val" style="text-align:right">${incomeVal?formatMoney(incomeVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
       </div>
