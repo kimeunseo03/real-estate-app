@@ -860,10 +860,75 @@ function fillPdfLayout(d){
     finalVal
   );}
 
-function savePDF(){
-  const layout=document.getElementById('pdfLayout');
-  layout.style.display='block';
-  html2pdf().set({margin:0,filename:`부동산_담보가치_평가보고서_${today()}.pdf`,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(layout).save().then(()=>{layout.style.display='none';});
+function savePDF() {
+
+  const result = document.getElementById('result');
+
+  const temp = document.createElement('div');
+
+  temp.style.background = '#ffffff';
+  temp.style.padding = '20px';
+  temp.style.width = '800px';
+
+  // 저장할 카드만 선택
+  const cards = result.querySelectorAll('.card');
+
+  cards.forEach(card => {
+
+    const title = card.querySelector('.card-title');
+
+    // 제외할 항목
+    if (
+      title &&
+      (
+        title.innerText.includes('유의사항') ||
+        title.innerText.includes('보정 분석')
+      )
+    ) {
+      return;
+    }
+
+    temp.appendChild(card.cloneNode(true));
+  });
+
+  // 상단 요약 추가
+  const summary = result.firstElementChild;
+
+  if (summary) {
+    temp.prepend(summary.cloneNode(true));
+  }
+
+  document.body.appendChild(temp);
+
+  const opt = {
+    margin: 8,
+    filename: `부동산_담보가치_평가보고서_${today()}.pdf`,
+    image: {
+      type: 'jpeg',
+      quality: 0.98
+    },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff'
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    },
+    pagebreak: {
+      mode: ['avoid-all', 'css', 'legacy']
+    }
+  };
+
+  html2pdf()
+    .set(opt)
+    .from(temp)
+    .save()
+    .finally(() => {
+      document.body.removeChild(temp);
+    });
 }
 
 document.getElementById('result').innerHTML='<div class="card"><p style="color:#5F5E5A;font-size:13px">주소를 입력하고 등기부등본을 업로드한 뒤 결과 계산하기를 눌러주세요.</p></div>';
