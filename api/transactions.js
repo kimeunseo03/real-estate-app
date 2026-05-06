@@ -92,46 +92,67 @@ module.exports = async function handler(req, res) {
       .sort((a, b) => a - b);
 
     const upperPrice = adjustedPrices[adjustedPrices.length - 1];
-    const pricesWithoutUpper = adjustedPrices.length >= 3
-      ? adjustedPrices.slice(0, -1)
-      : adjustedPrices;
 
-    const lowerPrice = pricesWithoutUpper[0];
-    const middlePrice = getMedian(pricesWithoutUpper);
+const upperDecision = shouldIncludeUpperPrice({
+  deals: adjustedDeals,
+  currentFloor,
+  totalFloors
+});
 
-    const medianFloor = totalFloors ? totalFloors / 2 : 0;
-    const useLower = currentFloor && medianFloor ? currentFloor < medianFloor : true;
-    const investigationPrice = useLower ? lowerPrice : middlePrice;
+const pricesForSelection = upperDecision.includeUpper
+  ? adjustedPrices
+  : adjustedPrices.length >= 3
+    ? adjustedPrices.slice(0, -1)
+    : adjustedPrices;
 
-    const avgAdjustment = summarizeAdjustments(adjustedDeals);
+const lowerPrice = pricesForSelection[0];
+const middlePrice = getMedian(pricesForSelection);
 
-    return res.status(200).json({
-      source: '공공데이터포털 실거래가 API',
-      lawdCode,
-      transactionCount: filtered.length,
-      usedTransactionCount: pricesWithoutUpper.length,
-      totalRawCount: allItems.length,
-      fetchedMonthCount: fetchedMonths.size,
+const medianFloor = totalFloors ? totalFloors / 2 : 0;
 
-      upperPrice,
-      middlePrice,
-      lowerPrice,
-      appliedPriceType: useLower ? '하위값' : '중위값',
-      investigationPrice,
+let appliedPriceType = '하위값';
+let investigationPrice = lowerPrice;
 
-      adjustmentSummary: avgAdjustment,
-      sampleDeals: adjustedDeals.slice(0, 5).map(d => ({
-        name: d.name,
-        area: d.area,
-        floor: d.floor,
-        dealYmd: d.dealYmd,
-        originalPrice: d.price,
-        adjustedPrice: d.adjustedPrice,
-        adjustment: d.adjustment
-      })),
+if (currentFloor && medianFloor) {
+  if (currentFloor >= totalFloors * 0.7 && upperDecision.includeUpper) {
+    appliedPriceType = '상위값';
+    investigationPrice = upperPrice;
+  } else if (currentFloor >= medianFloor) {
+    appliedPriceType = '중위값';
+    investigationPrice = middlePrice;
+  }
+}
 
-      message: `✅ 성공: 유사 거래 ${filtered.length}건, 보정 적용 후 산정`
-    });
+return res.status(200).json({
+  source: '공공데이터포털 실거래가 API',
+  lawdCode,
+  transactionCount: filtered.length,
+  usedTransactionCount: pricesForSelection.length,
+  totalRawCount: allItems.length,
+  fetchedMonthCount: fetchedMonths.size,
+
+  upperPrice,
+  middlePrice,
+  lowerPrice,
+  appliedPriceType,
+  investigationPrice,
+
+  upperPriceIncluded: upperDecision.includeUpper,
+  upperPriceReason: upperDecision.reason,
+
+  adjustmentSummary: avgAdjustment,
+  sampleDeals: adjustedDeals.slice(0, 5).map(d => ({
+    name: d.name,
+    area: d.area,
+    floor: d.floor,
+    dealYmd: d.dealYmd,
+    originalPrice: d.price,
+    adjustedPrice: d.adjustedPrice,
+    adjustment: d.adjustment
+  })),
+
+  message: `✅ 성공: 유사 거래 ${filtered.length}건, 보정 적용 후 산정`
+});
 
   } catch (error) {
     return res.status(200).json({
@@ -359,4 +380,34 @@ function normalizeAptName(name = '') {
     .replace(/\s/g, '')
     .replace(/아파트|APT|apt|단지|제\d+동|제\d+호/g, '')
     .trim();
+}
+
+function shouldIncludeUpperPrice({ deals, currentFloor, totalFloors }) {
+  if (!deals || deals.length <= 3) {
+    return {
+      includeUpper: true,
+      reason: '거래사례가 3건 이하로 상위값 제외 시 왜곡 가능'
+    };
+  }
+
+  const medianFloor = totalFloors ? totalFloors / 2 : 0;
+
+  if (currentFloor && totalFloors && currentFloor >= totalFloors * 0.7) {
+    return {
+      includeUpper: true,
+      reason: '대상 물건이 고층 또는 로열층 구간으로 상위값 반영 가능'
+    };
+  }
+
+  if (currentFloor && medianFloor && currentFloor >= medianFloor) {
+    return {
+      includeUpper: false,
+      reason: '중위층 이상이나 극단값 방지를 위해 상위값은 참고만 하고 중위값 적용'
+    };
+  }
+
+  return {
+    includeUpper: false,
+    reason: '저층 또는 중하층 물건으로 보수적 평가를 위해 상위값 제외'
+  };
 }
