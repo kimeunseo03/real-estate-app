@@ -338,6 +338,10 @@ async function getMarketAnalysis(lawdCode, address, parsed) {
       lowerPrice: d.lowerPrice || null,
       appliedPriceType: d.appliedPriceType || '하위값',
       investigationPrice: Number(d.investigationPrice),
+      upperPriceIncluded: d.upperPriceIncluded || false,
+  upperPriceReason: d.upperPriceReason || '',
+  adjustmentSummary: d.adjustmentSummary || null,
+  sampleDeals: d.sampleDeals || [],
       apiConnected: true,
       errorMessage: d.message || ''
     };
@@ -589,29 +593,43 @@ async function calculate(){
 }
 
 function renderResult(d){
-  const {
-  address, parsed, market, rent, costData,
-  salesVal, incomeVal, costVal, weighted,
-  ltvRate, ltvApplied,
-  totalDeposit, priorityInfo, finalVal, weightNote
-} = d;
-  const salesW=Number.isFinite(salesVal)?Math.round(salesVal*0.7):null;
-  const incomeW=Number.isFinite(incomeVal)?Math.round(incomeVal*0.2):null;
-  const costW=Number.isFinite(costVal)?Math.round(costVal*0.1):null;
-  const html=`
+ const html=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="background:#F8F7F3;border-radius:8px;padding:12px 14px">
-        <div style="font-size:10px;color:#888780;margin-bottom:4px">감정평가 시산가액</div>
+        <div style="font-size:10px;color:#888780;margin-bottom:4px">① 감정평가 추정가액</div>
         <div style="font-size:18px;font-weight:600;color:#2C2C2A">${formatMoney(weighted)}</div>
-        <div style="font-size:9px;color:#888780;margin-top:2px">${weightNote}</div>
-        <div style="font-size:9px;color:#888780;margin-top:1px">LTV ${Math.round(d.ltvRate*100)}% 적용 → ${formatMoney(d.ltvApplied)}</div>
+        <div style="font-size:9px;color:#888780;margin-top:2px">LTV 미적용 시장가치 기준</div>
+        <div style="font-size:9px;color:#185FA5;margin-top:1px">층 · 거래시점 · 단지명 보정 반영</div>
       </div>
+
       <div style="background:#185FA5;border-radius:8px;padding:12px 14px">
-        <div style="font-size:10px;color:#B5D4F4;margin-bottom:4px">최종 담보가치</div>
+        <div style="font-size:10px;color:#B5D4F4;margin-bottom:4px">② 담보가치</div>
         <div style="font-size:18px;font-weight:600;color:#fff">${formatMoney(finalVal)}</div>
-        <div style="font-size:9px;color:#B5D4F4;margin-top:2px">권리 차감 후</div>
+        <div style="font-size:9px;color:#B5D4F4;margin-top:2px">담보인정비율 ${Math.round(d.ltvRate*100)}% 적용</div>
+        <div style="font-size:9px;color:#B5D4F4;margin-top:1px">${formatMoney(weighted)} → ${formatMoney(ltvApplied)} → 권리차감</div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">감정평가 단계와 담보 분석 분리</div>
+      <div class="row-item"><span class="row-label">감정평가 추정가액</span><span class="row-val blue">${formatMoney(weighted)}</span></div>
+      <div class="row-item"><span class="row-label">담보인정비율 적용 전</span><span class="row-val">${formatMoney(weighted)}</span></div>
+      <div class="row-item"><span class="row-label">담보인정비율 ${Math.round(d.ltvRate*100)}%</span><span class="row-val">${formatMoney(ltvApplied)}</span></div>
+      <div class="row-item"><span class="row-label">권리 차감 후 담보가치</span><span class="row-val blue">${formatMoney(finalVal)}</span></div>
+      <p style="font-size:10px;color:#888780;margin-top:6px">실제 감정평가액과 비교할 때는 LTV 미적용 금액인 감정평가 추정가액을 기준으로 봅니다.</p>
+    </div>
+
+    ${market.adjustmentSummary ? `
+    <div class="card">
+      <div class="card-title">보정 분석</div>
+      <div class="row-item"><span class="row-label">층 보정 평균</span><span class="row-val ${market.adjustmentSummary.floorPct>=0?'blue':'warn'}">${market.adjustmentSummary.floorPct>0?'+':''}${market.adjustmentSummary.floorPct}%</span></div>
+      <div class="row-item"><span class="row-label">거래시점 보정 평균</span><span class="row-val ${market.adjustmentSummary.timePct>=0?'blue':'warn'}">${market.adjustmentSummary.timePct>0?'+':''}${market.adjustmentSummary.timePct}%</span></div>
+      <div class="row-item"><span class="row-label">단지명 정확도 보정</span><span class="row-val ${market.adjustmentSummary.complexPct>=0?'blue':'warn'}">${market.adjustmentSummary.complexPct>0?'+':''}${market.adjustmentSummary.complexPct}%</span></div>
+      <div class="row-item"><span class="row-label">총 보정 평균</span><span class="row-val blue">${market.adjustmentSummary.totalPct>0?'+':''}${market.adjustmentSummary.totalPct}%</span></div>
+      <div class="row-item"><span class="row-label">상위값 반영 여부</span><span class="row-val ${market.upperPriceIncluded?'blue':'warn'}">${market.upperPriceIncluded?'반영':'제외'}</span></div>
+      <p style="font-size:10px;color:#888780;margin-top:6px">${market.upperPriceReason || '상위값은 층수·거래건수·극단값 여부에 따라 조건부 반영됩니다.'}</p>
+    </div>
+    ` : ''}
     <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:#F8F7F3;border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
       <span style="font-size:9px;padding:2px 8px;border-radius:4px;font-weight:500;background:${parsed.documentValidation.tone==='green'?'#EAF3DE':'#FAEEDA'};color:${parsed.documentValidation.tone==='green'?'#3B6D11':'#854F0B'}">${parsed.documentValidation.status}</span>
       <span style="font-size:10px;color:#888780">감지 키워드 ${parsed.documentValidation.found.length}개</span>
@@ -658,19 +676,19 @@ function renderResult(d){
       ${market.errorMessage&&!market.apiConnected?`<div style="font-size:10px;color:#854F0B;margin-top:5px">${market.errorMessage}</div>`:''}
     </div>
     <div class="card">
-      <div class="card-title">감정평가 3방식 종합</div>
+      <div class="card-title">감정평가 3방식 가중평균</div>
       <div class="method-row">
-        <span class="pct-badge">70%</span><span style="color:#2C2C2A">거래사례비교법</span>
+        <span class="pct-badge">70%</span><span style="color:#2C2C2A">거래사례비교법70%</span>
         <span style="color:#888780;font-size:10px">실거래 기반</span>
         <span class="row-val" style="text-align:right">${formatMoney(salesVal)}</span>
       </div>
       <div class="method-row">
-        <span class="pct-badge">20%</span><span style="color:#2C2C2A">수익환원법</span>
+        <span class="pct-badge">20%</span><span style="color:#2C2C2A">수익환원법20%</span>
         <span style="color:#888780;font-size:10px">전월세 API</span>
         <span class="row-val" style="text-align:right">${incomeVal?formatMoney(incomeVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
       </div>
       <div class="method-row">
-        <span class="pct-badge">10%</span><span style="color:#2C2C2A">원가법</span>
+        <span class="pct-badge">10%</span><span style="color:#2C2C2A">원가법10%</span>
         <span style="color:#888780;font-size:10px">${costData.fallback?'지역추정':'공시가역산'}</span>
         <span class="row-val" style="text-align:right">${costVal?formatMoney(costVal):'<span style="color:#B0ADA4;font-weight:400">데이터 없음</span>'}</span>
       </div>
