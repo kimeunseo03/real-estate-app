@@ -673,6 +673,9 @@ function renderResult(d){
       <div class="row-item"><span class="row-label">층 보정 평균</span><span class="row-val ${market.adjustmentSummary.floorPct>=0?'blue':'warn'}">${market.adjustmentSummary.floorPct>0?'+':''}${market.adjustmentSummary.floorPct}%</span></div>
       <div class="row-item"><span class="row-label">거래시점 보정 평균</span><span class="row-val ${market.adjustmentSummary.timePct>=0?'blue':'warn'}">${market.adjustmentSummary.timePct>0?'+':''}${market.adjustmentSummary.timePct}%</span></div>
       <div class="row-item"><span class="row-label">단지명 정확도 보정</span><span class="row-val ${market.adjustmentSummary.complexPct>=0?'blue':'warn'}">${market.adjustmentSummary.complexPct>0?'+':''}${market.adjustmentSummary.complexPct}%</span></div>
+      <div class="row-item"><span class="row-label">노후도 보정</span><span class="row-val ${market.adjustmentSummary.agePct>=0?'blue':'warn'}">${market.adjustmentSummary.agePct>0?'+':''}${market.adjustmentSummary.agePct}%</span></div>
+<div class="row-item"><span class="row-label">단지 규모 보정</span><span class="row-val ${market.adjustmentSummary.scalePct>=0?'blue':'warn'}">${market.adjustmentSummary.scalePct>0?'+':''}${market.adjustmentSummary.scalePct}%</span></div>
+<div class="row-item"><span class="row-label">주차 보정</span><span class="row-val ${market.adjustmentSummary.parkingPct>=0?'blue':'warn'}">${market.adjustmentSummary.parkingPct>0?'+':''}${market.adjustmentSummary.parkingPct}%</span></div>
       <div class="row-item"><span class="row-label">총 보정 평균</span><span class="row-val blue">${market.adjustmentSummary.totalPct>0?'+':''}${market.adjustmentSummary.totalPct}%</span></div>
       <div class="row-item"><span class="row-label">상위값 반영 여부</span><span class="row-val ${market.upperPriceIncluded?'blue':'warn'}">${market.upperPriceIncluded?'반영':'제외'}</span></div>
       <p style="font-size:10px;color:#888780;margin-top:6px">${market.upperPriceReason || '상위값은 층수·거래건수·극단값 여부에 따라 조건부 반영됩니다.'}</p>
