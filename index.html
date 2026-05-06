@@ -593,7 +593,30 @@ async function calculate(){
 }
 
 function renderResult(d){
- const html=`
+ function renderResult(d){
+  const {
+    address,
+    parsed,
+    market,
+    rent,
+    costData,
+    salesVal,
+    incomeVal,
+    costVal,
+    weighted,
+    ltvRate,
+    ltvApplied,
+    totalDeposit,
+    priorityInfo,
+    finalVal,
+    weightNote
+  } = d;
+
+  const salesW = Number.isFinite(salesVal) ? Math.round(salesVal * 0.7) : null;
+  const incomeW = Number.isFinite(incomeVal) ? Math.round(incomeVal * 0.2) : null;
+  const costW = Number.isFinite(costVal) ? Math.round(costVal * 0.1) : null;
+
+  const html = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="background:#F8F7F3;border-radius:8px;padding:12px 14px">
         <div style="font-size:10px;color:#888780;margin-bottom:4px">① 감정평가 추정가액</div>
