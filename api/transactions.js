@@ -123,6 +123,8 @@ if (currentFloor && medianFloor) {
   }
 }
 
+const avgAdjustment = summarizeAdjustments(adjustedDeals);
+    
 return res.status(200).json({
   source: '공공데이터포털 실거래가 API',
   lawdCode,
